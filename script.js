@@ -70,7 +70,7 @@ async function handleAuthAction() {
             const res = await createUserWithEmailAndPassword(auth, inputEmail, inputPassword);
             currentUser = res.user;
         }
-        gameState = "menu"; // Volta para o menu logado
+        gameState = "menu";
     } catch (e) {
         console.error(e);
         authErrorMessage = "Erro: " + (e.code === "auth/invalid-credential" ? "Dados incorretos" : "Falha na conta");
@@ -137,7 +137,7 @@ const btnBackFromLoad = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 180,
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
-// --- IMAGENS ---
+// --- CARREGAMENTO DAS IMAGENS ---
 const images = {};
 function loadImage(key, src) {
     images[key] = new Image();
@@ -151,6 +151,9 @@ loadImage("stone", "assets/images/stone.png");
 loadImage("menuBg", "assets/images/menu_bg.png");
 
 loadImage("stoneEarthTransition", "assets/images/stone_earth_transition.png");
+loadImage("grassEarthStoneTop", "assets/images/grass_earth_stone_top.png");
+loadImage("grassEarthStoneBottom", "assets/images/grass_earth_stone_bottom.png");
+
 loadImage("earth1", "assets/images/earth1.png");
 loadImage("earth2", "assets/images/earth2.png");
 loadImage("grassEarthBottom1", "assets/images/grass_earth_bottom1.png");
@@ -177,6 +180,7 @@ const spawnRadius = 2;
 
 function generateMap() {
     let currentSeed = mapSeed;
+
     for (let r = 0; r < rows; r++) {
         mapGrid[r] = [];
         for (let c = 0; c < cols; c++) {
@@ -185,9 +189,21 @@ function generateMap() {
 
             if (isCenterSpawn) {
                 mapGrid[r][c] = "stone";
-            } else if (c === transitionCol && Math.abs(r - centerRow) <= 1) {
+            } 
+            // QUINA DE CIMA (Linha superior da terra + borda da pedra)
+            else if (c === transitionCol && r === centerRow - 1) {
+                mapGrid[r][c] = "grassEarthStoneTop";
+            }
+            // TRANSIÇÃO DO MEIO (Linha central da terra + borda da pedra)
+            else if (c === transitionCol && r === centerRow) {
                 mapGrid[r][c] = "stoneEarthTransition";
-            } else if (c < transitionCol) {
+            } 
+            // QUINA DE BAIXO (Linha inferior da terra + borda da pedra)
+            else if (c === transitionCol && r === centerRow + 1) {
+                mapGrid[r][c] = "grassEarthStoneBottom";
+            }
+            // LADO ESQUERDO (Terra e Gramas)
+            else if (c < transitionCol) {
                 const uniqueValue = currentSeed + (r * cols + c);
                 const randomVal = pseudoRandom(uniqueValue);
 
@@ -200,7 +216,9 @@ function generateMap() {
                 } else {
                     mapGrid[r][c] = "grass" + (Math.floor(randomVal * 3) + 1);
                 }
-            } else {
+            } 
+            // RESTO DO MAPA (Grama padrão)
+            else {
                 const uniqueValue = currentSeed + (r * cols + c);
                 const randomVal = pseudoRandom(uniqueValue);
                 mapGrid[r][c] = "grass" + (Math.floor(randomVal * 3) + 1);
@@ -451,7 +469,7 @@ function drawInputBox(box, label, value, isActive, isPassword = false) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Mapa
+    // 1. Desenha o Mapa
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
@@ -462,11 +480,11 @@ function draw() {
         }
     }
 
-    // 2. Jogador
+    // 2. Desenha o Jogador
     if (gameState === "playing" || gameState === "paused") {
-        let keyName = "playerDown1";
+        let keyName = "playerDown" + animFrame;
         if (player.direction === "up") keyName = "playerUp" + animFrame;
-        if (player.direction === "down") keyName = "playerDown1";
+        if (player.direction === "down") keyName = "playerDown" + animFrame;
         if (player.direction === "left") keyName = "playerLeft" + animFrame;
         if (player.direction === "right") keyName = "playerRight" + animFrame;
 
@@ -512,15 +530,12 @@ function draw() {
         ctx.textAlign = "center";
         ctx.fillText("CONTA DO JOGO", canvas.width / 2, 100);
 
-        // Abas Lado a Lado
         drawButton(tabLogin, "ENTRAR", authMode === "login" ? "#1565c0" : "#555555");
         drawButton(tabRegister, "CRIAR CONTA", authMode === "register" ? "#2e7d32" : "#555555");
 
-        // Campos de Texto
         drawInputBox(inputEmailBox, "E-mail:", inputEmail, activeInput === "email");
         drawInputBox(inputPassBox, "Senha:", inputPassword, activeInput === "password", true);
 
-        // Mensagem de Erro
         if (authErrorMessage) {
             ctx.fillStyle = "#ff4444";
             ctx.font = "14px Arial";
@@ -528,7 +543,6 @@ function draw() {
             ctx.fillText(authErrorMessage, canvas.width / 2, 345);
         }
 
-        // Botão de Ação
         drawButton(btnSubmitAuth, authMode === "login" ? "CONFIRMAR LOGIN" : "CADASTRAR", authMode === "login" ? "#1565c0" : "#2e7d32");
         drawButton(btnBackFromAuth, "VOLTAR", "#c62828");
     }
