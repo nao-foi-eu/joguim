@@ -6,9 +6,9 @@ const WORLD_HEIGHT = 2000;
 const TILE_SIZE = 64;
 
 // --- SISTEMA DE ANIMAÇÃO ---
-let animFrame = 1;       // Qual frame está ativo (1 ou 2)
-let animTimer = 0;       // Contador de tempo
-const ANIM_SPEED = 10;   // Velocidade da troca de passos (menor = mais rápido)
+let animFrame = 1;
+let animTimer = 0;
+const ANIM_SPEED = 10;
 
 // --- GERENCIAMENTO DA SEED ---
 function pseudoRandom(seed) {
@@ -41,11 +41,13 @@ function loadImage(key, src) {
     images[key].src = src;
 }
 
+// Chão
 loadImage("grass1", "assets/images/grass1.png");
 loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
+loadImage("stone", "assets/images/stone.png"); // Nova textura de pedra!
 
-// Imagens com animação (2 quadros por direção)
+// Personagem
 loadImage("playerDown1", "assets/images/player_down_1.png");
 loadImage("playerDown2", "assets/images/player_down_2.png");
 loadImage("playerUp1", "assets/images/player_up_1.png");
@@ -55,26 +57,38 @@ loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 
-// --- GERAÇÃO DO MAPA ---
+// --- GERAÇÃO DO MAPA COM PONTO DE NASCIMENTO ---
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
 let currentSeed = mapSeed;
 
+// Ponto Central do Mapa (Spawn)
+const centerCol = Math.floor(cols / 2);
+const centerRow = Math.floor(rows / 2);
+const spawnRadius = 2; // Tamanho da área de pedra (5x5 blocos)
+
 for (let r = 0; r < rows; r++) {
     mapGrid[r] = [];
     for (let c = 0; c < cols; c++) {
-        const uniqueValue = currentSeed + (r * cols + c);
-        const randomVal = pseudoRandom(uniqueValue);
-        const randomGrass = Math.floor(randomVal * 3) + 1;
-        mapGrid[r][c] = "grass" + randomGrass;
+        // Checa se esta posição está dentro da área de Spawn
+        if (Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius) {
+            mapGrid[r][c] = "stone"; // Coloca pedra no Spawn!
+        } else {
+            // Sorteia a grama para o resto do mapa
+            const uniqueValue = currentSeed + (r * cols + c);
+            const randomVal = pseudoRandom(uniqueValue);
+            const randomGrass = Math.floor(randomVal * 3) + 1;
+            mapGrid[r][c] = "grass" + randomGrass;
+        }
     }
 }
 
 // --- JOGADOR E CÂMERA ---
 const player = {
-    worldX: 1000,
-    worldY: 1000,
+    // Nasce exatamente no centro do mapa (sobre a pedra)
+    worldX: centerCol * TILE_SIZE,
+    worldY: centerRow * TILE_SIZE,
     width: 64,
     height: 64,
     speed: 5,
@@ -141,28 +155,27 @@ function update() {
     camera.x = player.worldX - canvas.width / 2 + player.width / 2;
     camera.y = player.worldY - canvas.height / 2 + player.height / 2;
 
-    // --- CONTROLE DA ANIMAÇÃO DE PASSOS ---
     if (player.isMoving) {
         animTimer++;
         if (animTimer >= ANIM_SPEED) {
-            animFrame = animFrame === 1 ? 2 : 1; // Alterna entre 1 e 2
+            animFrame = animFrame === 1 ? 2 : 1;
             animTimer = 0;
         }
     } else {
-        animFrame = 1; // Parado fica sempre no frame 1
+        animFrame = 1;
     }
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Desenha o chão
+    // 1. Desenha o mapa (Grama e a plataforma de Pedra no meio)
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
             const tileY = r * TILE_SIZE;
-            const grassType = mapGrid[r][c];
-            const img = images[grassType];
+            const tileType = mapGrid[r][c];
+            const img = images[tileType];
 
             if (img && img.complete) {
                 ctx.drawImage(img, tileX - camera.x, tileY - camera.y, TILE_SIZE, TILE_SIZE);
@@ -170,9 +183,8 @@ function draw() {
         }
     }
 
-    // 2. Escolhe a imagem certa baseada na DIREÇÃO + FRAME DE ANIMAÇÃO
+    // 2. Desenha o jogador
     let keyName = "playerDown1";
-
     if (player.direction === "up") keyName = "playerUp" + animFrame;
     if (player.direction === "down") keyName = "playerDown" + animFrame;
     if (player.direction === "left") keyName = "playerLeft" + animFrame;
@@ -180,7 +192,6 @@ function draw() {
 
     const currentSprite = images[keyName];
 
-    // Desenha o jogador
     if (currentSprite && currentSprite.complete) {
         ctx.drawImage(
             currentSprite,
