@@ -3,7 +3,35 @@ const ctx = canvas.getContext("2d");
 
 const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 2000;
-const TILE_SIZE = 64; // Tamanho de cada quadrado de grama
+const TILE_SIZE = 64;
+
+// --- GERADOR DE NÚMEROS PSEUDO-ALEATÓRIOS (PRNG com Seed) ---
+// Função de Hash simples para gerar números previsíveis baseados na Seed
+function pseudoRandom(seed) {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+}
+
+// --- GERENCIAMENTO DA SEED DO MAPA ---
+// Procura uma Seed salva no navegador; se não existir, cria uma nova
+let mapSeed = localStorage.getItem("rpg_map_seed");
+
+if (!mapSeed) {
+    mapSeed = Math.floor(Math.random() * 999999); // Gera uma seed nova
+    localStorage.setItem("rpg_map_seed", mapSeed); // Salva no navegador
+} else {
+    mapSeed = parseInt(mapSeed); // Converte de Texto para Número
+}
+
+// --- ESTADO DO JOGO ---
+let isPaused = false;
+
+const resumeButton = {
+    x: canvas.width / 2 - 100,
+    y: canvas.height / 2 - 25,
+    width: 200,
+    height: 50
+};
 
 // --- CARREGAMENTO DAS IMAGENS ---
 const images = {};
@@ -13,29 +41,31 @@ function loadImage(key, src) {
     images[key].src = src;
 }
 
-// Carrega as 3 variações de grama
 loadImage("grass1", "assets/images/grass1.png");
 loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
-
-// Carrega o personagem
 loadImage("playerDown", "assets/images/player_down.png");
 loadImage("playerUp", "assets/images/player_up.png");
 loadImage("playerLeft", "assets/images/player_left.png");
 loadImage("playerRight", "assets/images/player_right.png");
 
-// --- GERAÇÃO ALEATÓRIA DO MAPA ---
+// --- GERAÇÃO DO MAPA BASEADO NA SEED ---
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
 
-// Preenche a matriz do mapa sorteando um número de 1 a 3 para cada posição
+let currentSeed = mapSeed;
+
 for (let r = 0; r < rows; r++) {
     mapGrid[r] = [];
     for (let c = 0; c < cols; c++) {
-        // Gera um número aleatório entre 1 e 3
-        const randomGrass = Math.floor(Math.random() * 3) + 1;
-        mapGrid[r][c] = "grass" + randomGrass; // Salva ex: "grass1", "grass2" ou "grass3"
+        // Usa a posição (r, c) e a Seed para calcular a variação exata da grama
+        const uniqueValue = currentSeed + (r * cols + c);
+        const randomVal = pseudoRandom(uniqueValue);
+        
+        // Sorteia entre 1, 2 e 3 de forma 100% determinística
+        const randomGrass = Math.floor(randomVal * 3) + 1;
+        mapGrid[r][c] = "grass" + randomGrass;
     }
 }
 
@@ -45,17 +75,43 @@ const player = {
     worldY: 1000,
     width: 64,
     height: 64,
-    speed: 4.5,
+    speed: 5,
     direction: "down"
 };
 
 const camera = { x: 0, y: 0 };
 const keys = {};
 
-window.addEventListener("keydown", (e) => { keys[e.key] = true; });
+// --- EVENTOS ---
+window.addEventListener("keydown", (e) => { 
+    keys[e.key] = true; 
+    if (e.key === "p" || e.key === "P") {
+        isPaused = !isPaused;
+    }
+});
+
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
+canvas.addEventListener("click", (e) => {
+    if (!isPaused) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    if (
+        mouseX >= resumeButton.x &&
+        mouseX <= resumeButton.x + resumeButton.width &&
+        mouseY >= resumeButton.y &&
+        mouseY <= resumeButton.y + resumeButton.height
+    ) {
+        isPaused = false;
+    }
+});
+
 function update() {
+    if (isPaused) return;
+
     let nextX = player.worldX;
     let nextY = player.worldY;
 
@@ -86,12 +142,12 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Desenha o mapa com base no sorteio fixo guardado na matriz
+    // 1. Desenha o mapa gerado pela Seed
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
             const tileY = r * TILE_SIZE;
-            const grassType = mapGrid[r][c]; // Pega a variação sorteada ("grass1", "grass2", etc)
+            const grassType = mapGrid[r][c];
             const img = images[grassType];
 
             if (img && img.complete) {
@@ -100,14 +156,13 @@ function draw() {
         }
     }
 
-    // 2. Define o sprite do personagem
+    // 2. Desenha o jogador
     let currentSprite = images.playerDown;
     if (player.direction === "up") currentSprite = images.playerUp;
     if (player.direction === "down") currentSprite = images.playerDown;
     if (player.direction === "left") currentSprite = images.playerLeft;
     if (player.direction === "right") currentSprite = images.playerRight;
 
-    // 3. Desenha o personagem
     if (currentSprite && currentSprite.complete) {
         ctx.drawImage(
             currentSprite,
@@ -116,6 +171,32 @@ function draw() {
             player.width,
             player.height
         );
+    }
+
+    // 3. Desenha a tela de Pause
+    if (isPaused) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#2e7d32";
+        ctx.fillRect(resumeButton.x, resumeButton.y, resumeButton.width, resumeButton.height);
+
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(resumeButton.x, resumeButton.y, resumeButton.width, resumeButton.height);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 22px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+            "CONTINUAR", 
+            resumeButton.x + resumeButton.width / 2, 
+            resumeButton.y + resumeButton.height / 2
+        );
+
+        ctx.font = "bold 36px Arial";
+        ctx.fillText("JOGO PAUSADO", canvas.width / 2, canvas.height / 2 - 80);
     }
 }
 
