@@ -236,7 +236,7 @@ function drawButton(btn, text, bgColor = "#2e7d32") {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Desenha o mapa (Sempre visível ao fundo)
+    // 1. Desenha o mapa (visível no fundo)
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
@@ -250,46 +250,48 @@ function draw() {
         }
     }
 
-    // 2. Desenha o jogador
-    let keyName = "playerDown1";
-    if (player.direction === "up") keyName = "playerUp" + animFrame;
-    if (player.direction === "down") keyName = "playerDown" + animFrame;
-    if (player.direction === "left") keyName = "playerLeft" + animFrame;
-    if (player.direction === "right") keyName = "playerRight" + animFrame;
+    // 2. Desenha o jogador (Apenas se o jogo não estiver no menu)
+    if (gameState !== "menu") {
+        let keyName = "playerDown1";
+        if (player.direction === "up") keyName = "playerUp" + animFrame;
+        if (player.direction === "down") keyName = "playerDown" + animFrame;
+        if (player.direction === "left") keyName = "playerLeft" + animFrame;
+        if (player.direction === "right") keyName = "playerRight" + animFrame;
 
-    const currentSprite = images[keyName];
-    if (currentSprite && currentSprite.complete) {
-        ctx.drawImage(
-            currentSprite,
-            player.worldX - camera.x,
-            player.worldY - camera.y,
-            player.width,
-            player.height
-        );
+        const currentSprite = images[keyName];
+        if (currentSprite && currentSprite.complete) {
+            ctx.drawImage(
+                currentSprite,
+                player.worldX - camera.x,
+                player.worldY - camera.y,
+                player.width,
+                player.height
+            );
+        }
     }
 
     // 3. TELA DE MENU PRINCIPAL
     if (gameState === "menu") {
-        // Se a imagem do menu já carregou, desenha ela preenchendo todo o Canvas
-        if (images.menuBg && images.menuBg.complete) {
+        // Camada de fundo de segurança (garante que nada suma mesmo se a imagem falhar)
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Se a imagem existir e estiver carregada, desenha por cima
+        if (images.menuBg && images.menuBg.complete && images.menuBg.naturalWidth !== 0) {
             ctx.drawImage(images.menuBg, 0, 0, canvas.width, canvas.height);
-            
-            // Camada escura transparente por cima da imagem (opcional, deixa o texto e botões bem visíveis)
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        } else {
-            // Fundo escuro padrão caso a imagem ainda esteja carregando
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Título do Jogo
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 42px Arial";
+        // Título com Sombra
+        ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
+        ctx.fillStyle = "#000000";
+        ctx.fillText("endless—actually, no", canvas.width / 2 + 3, canvas.height / 2 - 97);
+        ctx.fillStyle = "#ffffff";
         ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 100);
 
-        // Botões
+        // BOTÕES - Desenhados obrigatoriamente
         drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
         drawButton(btnContinueGame, "CONTINUAR", "#1565c0");
     }
@@ -308,7 +310,6 @@ function draw() {
         drawButton(btnBackToMenu, "MENU PRINCIPAL", "#c62828");
     }
 }
-
 function gameLoop() {
     update();
     draw();
