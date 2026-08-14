@@ -8,15 +8,20 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1></h1>
+    <h1>endless—actually, no</h1>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // SUAS CREDENCIAIS REAIS DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBYR3XYbRz7uN8jbt9OB6C5lcqj-2QMz7g",
             authDomain: "endless-actually-no.firebaseapp.com",
@@ -31,10 +36,16 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
 
-        // Expõe os métodos do Firebase para o script.js
-        window.firebaseAuth = { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, doc, setDoc, getDoc };
+        // Expõe os métodos pro script.js
+        window.firebaseAuth = { 
+            auth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged, 
+            db, doc, setDoc, getDoc 
+        };
     </script>
 
     <script src="script.js"></script>
