@@ -4,14 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>endless—actually, no</title>
-
     <link rel="icon" type="image/png" href="assets/images/favicon.png">
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <h1></h1>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // SUAS CREDENCIAIS REAIS DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYR3XYbRz7uN8jbt9OB6C5lcqj-2QMz7g",
+            authDomain: "endless-actually-no.firebaseapp.com",
+            databaseURL: "https://endless-actually-no-default-rtdb.firebaseio.com",
+            projectId: "endless-actually-no",
+            storageBucket: "endless-actually-no.firebasestorage.app",
+            messagingSenderId: "869894391833",
+            appId: "1:869894391833:web:567415a487baa4ca8d8288",
+            measurementId: "G-5CJ1J779P9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Expõe os métodos do Firebase para o script.js
+        window.firebaseAuth = { auth, provider, signInWithPopup, signOut, onAuthStateChanged, db, doc, setDoc, getDoc };
+    </script>
 
     <script src="script.js"></script>
 </body>

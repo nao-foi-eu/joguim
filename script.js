@@ -8,12 +8,96 @@ const TILE_SIZE = 64;
 // --- ESTADOS DO JOGO ("menu", "playing", "paused") ---
 let gameState = "menu"; 
 
+// --- SISTEMA DE AUTENTICAÇÃO E NUVEM ---
+let currentUser = null;
+
+window.addEventListener("load", () => {
+    if (window.firebaseAuth) {
+        const { auth, onAuthStateChanged } = window.firebaseAuth;
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                console.log("Logado como:", user.displayName);
+                await loadCloudSave();
+            } else {
+                currentUser = null;
+                console.log("Usuário não logado.");
+            }
+        });
+    }
+});
+
+async function toggleAuth() {
+    if (!window.firebaseAuth) return;
+    const { auth, provider, signInWithPopup, signOut } = window.firebaseAuth;
+
+    if (currentUser) {
+        // Se estiver logado, faz Logout
+        try {
+            await signOut(auth);
+            currentUser = null;
+            console.log("Deslogado com sucesso!");
+        } catch (e) {
+            console.error("Erro ao deslogar:", e);
+        }
+    } else {
+        // Se estiver deslogado, faz Login
+        try {
+            const result = await signInWithPopup(auth, provider);
+            currentUser = result.user;
+            await loadCloudSave();
+        } catch (e) {
+            console.error("Erro no login:", e);
+        }
+    }
+}
+
+async function saveGameToCloud() {
+    if (!currentUser || !window.firebaseAuth) {
+        saveGame(); // Salva localmente caso não esteja logado
+        return;
+    }
+
+    const { db, doc, setDoc } = window.firebaseAuth;
+    try {
+        await setDoc(doc(db, "saves", currentUser.uid), {
+            mapSeed: mapSeed,
+            playerX: player.worldX,
+            playerY: player.worldY,
+            updatedAt: new Date()
+        });
+    } catch (e) {
+        console.error("Erro ao salvar na nuvem:", e);
+    }
+}
+
+async function loadCloudSave() {
+    if (!currentUser || !window.firebaseAuth) return;
+    const { db, doc, getDoc } = window.firebaseAuth;
+
+    try {
+        const docRef = doc(db, "saves", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.mapSeed) mapSeed = data.mapSeed;
+            if (data.playerX !== undefined) player.worldX = data.playerX;
+            if (data.playerY !== undefined) player.worldY = data.playerY;
+            console.log("Progresso recarregado da nuvem!");
+        }
+    } catch (e) {
+        console.error("Erro ao carregar da nuvem:", e);
+    }
+}
+
 // --- SISTEMA DE ANIMAÇÃO ---
 let animFrame = 1;
 let animTimer = 0;
 const ANIM_SPEED = 10;
 
-// --- GERENCIAMENTO DA SEED E SAVE ---
+// --- GERENCIAMENTO DA SEED E SAVE LOCAL ---
 function pseudoRandom(seed) {
     let x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
@@ -28,8 +112,9 @@ if (!mapSeed) {
 }
 
 // --- BOTÕES DAS INTERFACES ---
-const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 20, width: 220, height: 50 };
-const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 50, width: 220, height: 50 };
+const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 40, width: 220, height: 45 };
+const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 15, width: 220, height: 45 };
+const btnAuth = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 70, width: 220, height: 45 };
 
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
@@ -42,14 +127,12 @@ function loadImage(key, src) {
     images[key].src = src;
 }
 
-// Chão e Pedras
 loadImage("grass1", "assets/images/grass1.png");
 loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
 loadImage("stone", "assets/images/stone.png");
 loadImage("menuBg", "assets/images/menu_bg.png");
 
-// Texturas do Caminho de Terra e Transições
 loadImage("stoneEarthTransition", "assets/images/stone_earth_transition.png");
 loadImage("earth1", "assets/images/earth1.png");
 loadImage("earth2", "assets/images/earth2.png");
@@ -58,7 +141,6 @@ loadImage("grassEarthBottom2", "assets/images/grass_earth_bottom2.png");
 loadImage("grassEarthTop1", "assets/images/grass_earth_top1.png");
 loadImage("grassEarthTop2", "assets/images/grass_earth_top2.png");
 
-// Personagem
 loadImage("playerDown1", "assets/images/player_down_1.png");
 loadImage("playerDown2", "assets/images/player_down_2.png");
 loadImage("playerUp1", "assets/images/player_up_1.png");
@@ -68,7 +150,7 @@ loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 
-// --- GERAÇÃO DO MAPA COM TRANSIÇÕES ---
+// --- GERAÇÃO DO MAPA ---
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
@@ -76,52 +158,42 @@ let currentSeed = mapSeed;
 
 const centerCol = Math.floor(cols / 2);
 const centerRow = Math.floor(rows / 2);
-const spawnRadius = 2; // Praça central de pedra (5x5)
+const spawnRadius = 2;
 
 for (let r = 0; r < rows; r++) {
     mapGrid[r] = [];
     for (let c = 0; c < cols; c++) {
         const isCenterSpawn = Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius;
-        
-        // Coluna exata da borda esquerda da praça
         const transitionCol = centerCol - spawnRadius - 1;
 
         if (isCenterSpawn) {
-            // Praça central de pedra
             mapGrid[r][c] = "stone";
         } 
         else if (c === transitionCol && Math.abs(r - centerRow) <= 1) {
-            // Transição entre a Praça de Pedra e o Caminho de Terra
             mapGrid[r][c] = "stoneEarthTransition";
         } 
         else if (c < transitionCol) {
-            // Caminho de terra indo para a esquerda
             const uniqueValue = currentSeed + (r * cols + c);
             const randomVal = pseudoRandom(uniqueValue);
 
             if (r === centerRow - 1) {
-                // Borda de Cima (Grama -> Terra)
                 const variant = randomVal > 0.5 ? "1" : "2";
                 mapGrid[r][c] = "grassEarthTop" + variant;
             } 
             else if (r === centerRow) {
-                // Centro do caminho de terra
                 const variant = randomVal > 0.5 ? "1" : "2";
                 mapGrid[r][c] = "earth" + variant;
             } 
             else if (r === centerRow + 1) {
-                // Borda de Baixo (Grama -> Terra)
                 const variant = randomVal > 0.5 ? "1" : "2";
                 mapGrid[r][c] = "grassEarthBottom" + variant;
             } 
             else {
-                // Grama normal no restante do mapa
                 const randomGrass = Math.floor(randomVal * 3) + 1;
                 mapGrid[r][c] = "grass" + randomGrass;
             }
         } 
         else {
-            // Grama normal
             const uniqueValue = currentSeed + (r * cols + c);
             const randomVal = pseudoRandom(uniqueValue);
             const randomGrass = Math.floor(randomVal * 3) + 1;
@@ -148,14 +220,14 @@ function startNewGame() {
     player.worldX = centerCol * TILE_SIZE;
     player.worldY = centerRow * TILE_SIZE;
     player.direction = "down";
-    saveGame();
+    saveGameToCloud();
     gameState = "playing";
 }
 
 function loadSavedGame() {
     const savedX = localStorage.getItem("rpg_player_x");
     const savedY = localStorage.getItem("rpg_player_y");
-    if (savedX !== null && savedY !== null) {
+    if (savedX !== null && savedY !== null && !currentUser) {
         player.worldX = parseFloat(savedX);
         player.worldY = parseFloat(savedY);
     }
@@ -198,12 +270,14 @@ canvas.addEventListener("click", (e) => {
             startNewGame();
         } else if (isInside(btnContinueGame)) {
             loadSavedGame();
+        } else if (isInside(btnAuth)) {
+            toggleAuth();
         }
     } else if (gameState === "paused") {
         if (isInside(btnResume)) {
             gameState = "playing";
         } else if (isInside(btnBackToMenu)) {
-            saveGame();
+            saveGameToCloud();
             gameState = "menu";
         }
     }
@@ -249,7 +323,7 @@ function update() {
             animFrame = animFrame === 1 ? 2 : 1;
             animTimer = 0;
         }
-        saveGame();
+        saveGameToCloud();
     } else {
         animFrame = 1;
     }
@@ -264,7 +338,7 @@ function drawButton(btn, text, bgColor = "#2e7d32") {
     ctx.strokeRect(btn.x, btn.y, btn.width, btn.height);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 20px Arial";
+    ctx.font = "bold 18px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, btn.x + btn.width / 2, btn.y + btn.height / 2);
@@ -287,7 +361,7 @@ function draw() {
         }
     }
 
-    // 2. Desenha o jogador (apenas fora do menu)
+    // 2. Desenha o jogador
     if (gameState !== "menu") {
         let keyName = "playerDown1";
         if (player.direction === "up") keyName = "playerUp" + animFrame;
@@ -321,12 +395,17 @@ function draw() {
         ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
         ctx.fillStyle = "#000000";
-        ctx.fillText("endless—actually, no", canvas.width / 2 + 3, canvas.height / 2 - 97);
+        ctx.fillText("endless—actually, no", canvas.width / 2 + 3, canvas.height / 2 - 107);
         ctx.fillStyle = "#ffffff";
-        ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 100);
+        ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 110);
 
         drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
         drawButton(btnContinueGame, "CONTINUAR", "#1565c0");
+
+        // Botão Dinâmico de Login/Logout
+        const authLabel = currentUser ? `SAIR (${currentUser.displayName.split(" ")[0]})` : "ENTRAR C/ GOOGLE";
+        const authColor = currentUser ? "#c62828" : "#db4437";
+        drawButton(btnAuth, authLabel, authColor);
     }
 
     // 4. TELA DE PAUSE
