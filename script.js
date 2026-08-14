@@ -28,11 +28,9 @@ if (!mapSeed) {
 }
 
 // --- BOTÕES DAS INTERFACES ---
-// Menu Principal
 const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 20, width: 220, height: 50 };
 const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 50, width: 220, height: 50 };
 
-// Tela de Pause
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
@@ -44,11 +42,23 @@ function loadImage(key, src) {
     images[key].src = src;
 }
 
+// Chão e Pedras
 loadImage("grass1", "assets/images/grass1.png");
 loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
 loadImage("stone", "assets/images/stone.png");
+loadImage("menuBg", "assets/images/menu_bg.png");
 
+// Texturas do Caminho de Terra e Transições
+loadImage("stoneEarthTransition", "assets/images/stone_earth_transition.png");
+loadImage("earth1", "assets/images/earth1.png");
+loadImage("earth2", "assets/images/earth2.png");
+loadImage("grassEarthBottom1", "assets/images/grass_earth_bottom1.png");
+loadImage("grassEarthBottom2", "assets/images/grass_earth_bottom2.png");
+loadImage("grassEarthTop1", "assets/images/grass_earth_top1.png");
+loadImage("grassEarthTop2", "assets/images/grass_earth_top2.png");
+
+// Personagem
 loadImage("playerDown1", "assets/images/player_down_1.png");
 loadImage("playerDown2", "assets/images/player_down_2.png");
 loadImage("playerUp1", "assets/images/player_up_1.png");
@@ -58,9 +68,7 @@ loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 
-loadImage("menuBg", "assets/images/menu_bg.png");
-
-// --- GERAÇÃO DO MAPA ---
+// --- GERAÇÃO DO MAPA COM TRANSIÇÕES ---
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
@@ -68,14 +76,52 @@ let currentSeed = mapSeed;
 
 const centerCol = Math.floor(cols / 2);
 const centerRow = Math.floor(rows / 2);
-const spawnRadius = 2;
+const spawnRadius = 2; // Praça central de pedra (5x5)
 
 for (let r = 0; r < rows; r++) {
     mapGrid[r] = [];
     for (let c = 0; c < cols; c++) {
-        if (Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius) {
+        const isCenterSpawn = Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius;
+        
+        // Coluna exata da borda esquerda da praça
+        const transitionCol = centerCol - spawnRadius - 1;
+
+        if (isCenterSpawn) {
+            // Praça central de pedra
             mapGrid[r][c] = "stone";
-        } else {
+        } 
+        else if (c === transitionCol && Math.abs(r - centerRow) <= 1) {
+            // Transição entre a Praça de Pedra e o Caminho de Terra
+            mapGrid[r][c] = "stoneEarthTransition";
+        } 
+        else if (c < transitionCol) {
+            // Caminho de terra indo para a esquerda
+            const uniqueValue = currentSeed + (r * cols + c);
+            const randomVal = pseudoRandom(uniqueValue);
+
+            if (r === centerRow - 1) {
+                // Borda de Cima (Grama -> Terra)
+                const variant = randomVal > 0.5 ? "1" : "2";
+                mapGrid[r][c] = "grassEarthTop" + variant;
+            } 
+            else if (r === centerRow) {
+                // Centro do caminho de terra
+                const variant = randomVal > 0.5 ? "1" : "2";
+                mapGrid[r][c] = "earth" + variant;
+            } 
+            else if (r === centerRow + 1) {
+                // Borda de Baixo (Grama -> Terra)
+                const variant = randomVal > 0.5 ? "1" : "2";
+                mapGrid[r][c] = "grassEarthBottom" + variant;
+            } 
+            else {
+                // Grama normal no restante do mapa
+                const randomGrass = Math.floor(randomVal * 3) + 1;
+                mapGrid[r][c] = "grass" + randomGrass;
+            }
+        } 
+        else {
+            // Grama normal
             const uniqueValue = currentSeed + (r * cols + c);
             const randomVal = pseudoRandom(uniqueValue);
             const randomGrass = Math.floor(randomVal * 3) + 1;
@@ -98,7 +144,6 @@ const player = {
 const camera = { x: 0, y: 0 };
 const keys = {};
 
-// Função para iniciar um Novo Jogo (reseta posição para o Spawn)
 function startNewGame() {
     player.worldX = centerCol * TILE_SIZE;
     player.worldY = centerRow * TILE_SIZE;
@@ -107,7 +152,6 @@ function startNewGame() {
     gameState = "playing";
 }
 
-// Carregar Posição Salva
 function loadSavedGame() {
     const savedX = localStorage.getItem("rpg_player_x");
     const savedY = localStorage.getItem("rpg_player_y");
@@ -118,7 +162,6 @@ function loadSavedGame() {
     gameState = "playing";
 }
 
-// Salvar Posição do Jogador
 function saveGame() {
     localStorage.setItem("rpg_player_x", player.worldX);
     localStorage.setItem("rpg_player_y", player.worldY);
@@ -128,7 +171,6 @@ function saveGame() {
 window.addEventListener("keydown", (e) => { 
     keys[e.key] = true; 
     
-    // Pressionar P alterna entre jogando e pausado
     if (e.key === "p" || e.key === "P") {
         if (gameState === "playing") {
             gameState = "paused";
@@ -140,7 +182,7 @@ window.addEventListener("keydown", (e) => {
 
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
-// --- CLIQUES DO MOUSE NAS TELAS ---
+// --- CLIQUES DO MOUSE ---
 canvas.addEventListener("click", (e) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -151,27 +193,23 @@ canvas.addEventListener("click", (e) => {
                mouseY >= btn.y && mouseY <= btn.y + btn.height;
     }
 
-    // Clique no MENU PRINCIPAL
     if (gameState === "menu") {
         if (isInside(btnNewGame)) {
             startNewGame();
         } else if (isInside(btnContinueGame)) {
             loadSavedGame();
         }
-    } 
-    // Clique no PAUSE
-    else if (gameState === "paused") {
+    } else if (gameState === "paused") {
         if (isInside(btnResume)) {
             gameState = "playing";
         } else if (isInside(btnBackToMenu)) {
-            saveGame(); // Salva o progresso ao voltar pro menu
+            saveGame();
             gameState = "menu";
         }
     }
 });
 
 function update() {
-    // Só atualiza o movimento do personagem se estiver JOGANDO
     if (gameState !== "playing") return;
 
     let nextX = player.worldX;
@@ -211,13 +249,12 @@ function update() {
             animFrame = animFrame === 1 ? 2 : 1;
             animTimer = 0;
         }
-        saveGame(); // Salva automaticamente conforme anda
+        saveGame();
     } else {
         animFrame = 1;
     }
 }
 
-// Função auxiliar para desenhar um botão na tela
 function drawButton(btn, text, bgColor = "#2e7d32") {
     ctx.fillStyle = bgColor;
     ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
@@ -236,7 +273,7 @@ function drawButton(btn, text, bgColor = "#2e7d32") {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Desenha o mapa (visível no fundo)
+    // 1. Desenha o mapa
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
@@ -250,7 +287,7 @@ function draw() {
         }
     }
 
-    // 2. Desenha o jogador (Apenas se o jogo não estiver no menu)
+    // 2. Desenha o jogador (apenas fora do menu)
     if (gameState !== "menu") {
         let keyName = "playerDown1";
         if (player.direction === "up") keyName = "playerUp" + animFrame;
@@ -272,18 +309,15 @@ function draw() {
 
     // 3. TELA DE MENU PRINCIPAL
     if (gameState === "menu") {
-        // Camada de fundo de segurança (garante que nada suma mesmo se a imagem falhar)
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Se a imagem existir e estiver carregada, desenha por cima
         if (images.menuBg && images.menuBg.complete && images.menuBg.naturalWidth !== 0) {
             ctx.drawImage(images.menuBg, 0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Título com Sombra
         ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
         ctx.fillStyle = "#000000";
@@ -291,7 +325,6 @@ function draw() {
         ctx.fillStyle = "#ffffff";
         ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 100);
 
-        // BOTÕES - Desenhados obrigatoriamente
         drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
         drawButton(btnContinueGame, "CONTINUAR", "#1565c0");
     }
@@ -310,6 +343,7 @@ function draw() {
         drawButton(btnBackToMenu, "MENU PRINCIPAL", "#c62828");
     }
 }
+
 function gameLoop() {
     update();
     draw();
