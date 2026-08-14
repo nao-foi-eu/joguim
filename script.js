@@ -5,8 +5,31 @@ const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 2000;
 const TILE_SIZE = 64;
 
-// --- ESTADOS DO JOGO ("menu", "playing", "paused") ---
+// --- ESTADOS DO JOGO ("menu", "new_game_prompt", "load_menu", "playing", "paused") ---
 let gameState = "menu"; 
+
+// --- SISTEMA DE SAVES ---
+let savesList = []; // Lista de todos os saves
+let currentSaveId = null; // ID do save atualmente ativo
+let newSaveInputName = "Meu Save"; // Nome padrão para novo save
+
+// Carregar lista de saves do LocalStorage/Nuvem ao iniciar
+function loadSavesList() {
+    const stored = localStorage.getItem("rpg_saves_list");
+    if (stored) {
+        try {
+            savesList = JSON.parse(stored);
+        } catch(e) {
+            savesList = [];
+        }
+    }
+}
+
+function saveSavesList() {
+    localStorage.setItem("rpg_saves_list", JSON.stringify(savesList));
+}
+
+loadSavesList();
 
 // --- SISTEMA DE AUTENTICAÇÃO E NUVEM ---
 let currentUser = null;
@@ -14,7 +37,6 @@ let currentUser = null;
 window.addEventListener("load", () => {
     if (window.firebaseAuth) {
         const { auth, onAuthStateChanged } = window.firebaseAuth;
-        
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
@@ -33,39 +55,36 @@ async function toggleAuth() {
     const { auth, provider, signInWithPopup, signOut } = window.firebaseAuth;
 
     if (currentUser) {
-        // Se estiver logado, faz Logout
         try {
             await signOut(auth);
             currentUser = null;
-            console.log("Deslogado com sucesso!");
         } catch (e) {
-            console.error("Erro ao deslogar:", e);
+            console.error(e);
         }
     } else {
-        // Se estiver deslogado, faz Login
         try {
             const result = await signInWithPopup(auth, provider);
             currentUser = result.user;
             await loadCloudSave();
         } catch (e) {
-            console.error("Erro no login:", e);
+            console.error(e);
         }
     }
 }
 
 async function saveGameToCloud() {
-    if (!currentUser || !window.firebaseAuth) {
-        saveGame(); // Salva localmente caso não esteja logado
-        return;
-    }
+    saveGameLocal();
+    if (!currentUser || !window.firebaseAuth) return;
 
     const { db, doc, setDoc } = window.firebaseAuth;
     try {
-        await setDoc(doc(db, "saves", currentUser.uid), {
+        await setDoc(doc(db, "saves_" + currentUser.uid, currentSaveId), {
+            id: currentSaveId,
+            name: currentSaveName,
             mapSeed: mapSeed,
             playerX: player.worldX,
             playerY: player.worldY,
-            updatedAt: new Date()
+            updatedAt: new Date().toISOString()
         });
     } catch (e) {
         console.error("Erro ao salvar na nuvem:", e);
@@ -75,21 +94,7 @@ async function saveGameToCloud() {
 async function loadCloudSave() {
     if (!currentUser || !window.firebaseAuth) return;
     const { db, doc, getDoc } = window.firebaseAuth;
-
-    try {
-        const docRef = doc(db, "saves", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.mapSeed) mapSeed = data.mapSeed;
-            if (data.playerX !== undefined) player.worldX = data.playerX;
-            if (data.playerY !== undefined) player.worldY = data.playerY;
-            console.log("Progresso recarregado da nuvem!");
-        }
-    } catch (e) {
-        console.error("Erro ao carregar da nuvem:", e);
-    }
+    // Opcional: Sincronizar saves da nuvem
 }
 
 // --- SISTEMA DE ANIMAÇÃO ---
@@ -97,25 +102,28 @@ let animFrame = 1;
 let animTimer = 0;
 const ANIM_SPEED = 10;
 
-// --- GERENCIAMENTO DA SEED E SAVE LOCAL ---
+// --- GERENCIAMENTO DO MAPA E SEED ---
 function pseudoRandom(seed) {
     let x = Math.sin(seed++) * 10000;
     return x - Math.floor(x);
 }
 
-let mapSeed = localStorage.getItem("rpg_map_seed");
-if (!mapSeed) {
-    mapSeed = Math.floor(Math.random() * 999999);
-    localStorage.setItem("rpg_map_seed", mapSeed);
-} else {
-    mapSeed = parseInt(mapSeed);
-}
+let mapSeed = Math.floor(Math.random() * 999999);
+let currentSaveName = "Novo Mundo";
 
 // --- BOTÕES DAS INTERFACES ---
 const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 40, width: 220, height: 45 };
 const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 15, width: 220, height: 45 };
 const btnAuth = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 70, width: 220, height: 45 };
 
+// Botões da Tela de Nome do Save
+const btnConfirmNewSave = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 30, width: 220, height: 45 };
+const btnCancelNewSave = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 85, width: 220, height: 45 };
+
+// Botão Voltar da Tela de Carregar Save
+const btnBackFromLoad = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 180, width: 220, height: 45 };
+
+// Tela de Pause
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
@@ -154,53 +162,57 @@ loadImage("playerRight2", "assets/images/player_right_2.png");
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
-let currentSeed = mapSeed;
 
 const centerCol = Math.floor(cols / 2);
 const centerRow = Math.floor(rows / 2);
 const spawnRadius = 2;
 
-for (let r = 0; r < rows; r++) {
-    mapGrid[r] = [];
-    for (let c = 0; c < cols; c++) {
-        const isCenterSpawn = Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius;
-        const transitionCol = centerCol - spawnRadius - 1;
+function generateMap() {
+    let currentSeed = mapSeed;
+    for (let r = 0; r < rows; r++) {
+        mapGrid[r] = [];
+        for (let c = 0; c < cols; c++) {
+            const isCenterSpawn = Math.abs(r - centerRow) <= spawnRadius && Math.abs(c - centerCol) <= spawnRadius;
+            const transitionCol = centerCol - spawnRadius - 1;
 
-        if (isCenterSpawn) {
-            mapGrid[r][c] = "stone";
-        } 
-        else if (c === transitionCol && Math.abs(r - centerRow) <= 1) {
-            mapGrid[r][c] = "stoneEarthTransition";
-        } 
-        else if (c < transitionCol) {
-            const uniqueValue = currentSeed + (r * cols + c);
-            const randomVal = pseudoRandom(uniqueValue);
+            if (isCenterSpawn) {
+                mapGrid[r][c] = "stone";
+            } 
+            else if (c === transitionCol && Math.abs(r - centerRow) <= 1) {
+                mapGrid[r][c] = "stoneEarthTransition";
+            } 
+            else if (c < transitionCol) {
+                const uniqueValue = currentSeed + (r * cols + c);
+                const randomVal = pseudoRandom(uniqueValue);
 
-            if (r === centerRow - 1) {
-                const variant = randomVal > 0.5 ? "1" : "2";
-                mapGrid[r][c] = "grassEarthTop" + variant;
-            } 
-            else if (r === centerRow) {
-                const variant = randomVal > 0.5 ? "1" : "2";
-                mapGrid[r][c] = "earth" + variant;
-            } 
-            else if (r === centerRow + 1) {
-                const variant = randomVal > 0.5 ? "1" : "2";
-                mapGrid[r][c] = "grassEarthBottom" + variant;
+                if (r === centerRow - 1) {
+                    const variant = randomVal > 0.5 ? "1" : "2";
+                    mapGrid[r][c] = "grassEarthTop" + variant;
+                } 
+                else if (r === centerRow) {
+                    const variant = randomVal > 0.5 ? "1" : "2";
+                    mapGrid[r][c] = "earth" + variant;
+                } 
+                else if (r === centerRow + 1) {
+                    const variant = randomVal > 0.5 ? "1" : "2";
+                    mapGrid[r][c] = "grassEarthBottom" + variant;
+                } 
+                else {
+                    const randomGrass = Math.floor(randomVal * 3) + 1;
+                    mapGrid[r][c] = "grass" + randomGrass;
+                }
             } 
             else {
+                const uniqueValue = currentSeed + (r * cols + c);
+                const randomVal = pseudoRandom(uniqueValue);
                 const randomGrass = Math.floor(randomVal * 3) + 1;
                 mapGrid[r][c] = "grass" + randomGrass;
             }
-        } 
-        else {
-            const uniqueValue = currentSeed + (r * cols + c);
-            const randomVal = pseudoRandom(uniqueValue);
-            const randomGrass = Math.floor(randomVal * 3) + 1;
-            mapGrid[r][c] = "grass" + randomGrass;
         }
     }
 }
+
+generateMap();
 
 // --- JOGADOR E CÂMERA ---
 const player = {
@@ -216,33 +228,78 @@ const player = {
 const camera = { x: 0, y: 0 };
 const keys = {};
 
-function startNewGame() {
+// Iniciar um Novo Save
+function createAndStartNewGame(saveName) {
+    currentSaveId = "save_" + Date.now();
+    currentSaveName = saveName || "Mundo Sem Nome";
+    mapSeed = Math.floor(Math.random() * 999999);
+    
     player.worldX = centerCol * TILE_SIZE;
     player.worldY = centerRow * TILE_SIZE;
     player.direction = "down";
+
+    generateMap();
+
+    // Adiciona na lista de saves
+    const newSaveObj = {
+        id: currentSaveId,
+        name: currentSaveName,
+        seed: mapSeed,
+        x: player.worldX,
+        y: player.worldY,
+        date: new Date().toLocaleDateString("pt-BR")
+    };
+
+    savesList.push(newSaveObj);
+    saveSavesList();
     saveGameToCloud();
+
     gameState = "playing";
 }
 
-function loadSavedGame() {
-    const savedX = localStorage.getItem("rpg_player_x");
-    const savedY = localStorage.getItem("rpg_player_y");
-    if (savedX !== null && savedY !== null && !currentUser) {
-        player.worldX = parseFloat(savedX);
-        player.worldY = parseFloat(savedY);
+// Carregar Save Selecionado
+function loadSelectedSave(saveObj) {
+    currentSaveId = saveObj.id;
+    currentSaveName = saveObj.name;
+    mapSeed = saveObj.seed;
+    player.worldX = saveObj.x;
+    player.worldY = saveObj.y;
+
+    generateMap();
+    gameState = "playing";
+}
+
+// Salvar Posição do Jogo Atual Localmente
+function saveGameLocal() {
+    if (!currentSaveId) return;
+
+    const saveIndex = savesList.findIndex(s => s.id === currentSaveId);
+    if (saveIndex !== -1) {
+        savesList[saveIndex].x = player.worldX;
+        savesList[saveIndex].y = player.worldY;
+        savesList[saveIndex].date = new Date().toLocaleDateString("pt-BR");
+        saveSavesList();
     }
-    gameState = "playing";
 }
 
-function saveGame() {
-    localStorage.setItem("rpg_player_x", player.worldX);
-    localStorage.setItem("rpg_player_y", player.worldY);
-}
-
-// --- CONTROLES DE TECLADO ---
+// --- CONTROLES DE TECLADO E DIGITAÇÃO ---
 window.addEventListener("keydown", (e) => { 
     keys[e.key] = true; 
+
+    // Digitação do nome do save na tela "new_game_prompt"
+    if (gameState === "new_game_prompt") {
+        if (e.key === "Backspace") {
+            newSaveInputName = newSaveInputName.slice(0, -1);
+        } else if (e.key.length === 1 && newSaveInputName.length < 15) {
+            newSaveInputName += e.key;
+        } else if (e.key === "Enter" && newSaveInputName.trim() !== "") {
+            createAndStartNewGame(newSaveInputName);
+            newSaveInputName = "Meu Save";
+        }
+        return;
+    }
     
+    // P para Pausar
     if (e.key === "p" || e.key === "P") {
         if (gameState === "playing") {
             gameState = "paused";
@@ -265,15 +322,51 @@ canvas.addEventListener("click", (e) => {
                mouseY >= btn.y && mouseY <= btn.y + btn.height;
     }
 
+    // 1. MENU PRINCIPAL
     if (gameState === "menu") {
         if (isInside(btnNewGame)) {
-            startNewGame();
+            newSaveInputName = "Mundo " + (savesList.length + 1);
+            gameState = "new_game_prompt";
         } else if (isInside(btnContinueGame)) {
-            loadSavedGame();
+            gameState = "load_menu";
         } else if (isInside(btnAuth)) {
             toggleAuth();
         }
-    } else if (gameState === "paused") {
+    } 
+    // 2. TELA DE NOVO SAVE (NOME DO SAVE)
+    else if (gameState === "new_game_prompt") {
+        if (isInside(btnConfirmNewSave)) {
+            if (newSaveInputName.trim() !== "") {
+                createAndStartNewGame(newSaveInputName);
+                newSaveInputName = "Meu Save";
+            }
+        } else if (isInside(btnCancelNewSave)) {
+            gameState = "menu";
+        }
+    }
+    // 3. TELA DE CARREGAR SAVES
+    else if (gameState === "load_menu") {
+        if (isInside(btnBackFromLoad)) {
+            gameState = "menu";
+            return;
+        }
+
+        // Verifica clique nos slots de save
+        const slotWidth = 320;
+        const slotHeight = 45;
+        const startX = canvas.width / 2 - slotWidth / 2;
+        let startY = 150;
+
+        for (let i = 0; i < savesList.length && i < 5; i++) {
+            const slotBtn = { x: startX, y: startY + (i * 55), width: slotWidth, height: slotHeight };
+            if (isInside(slotBtn)) {
+                loadSelectedSave(savesList[i]);
+                break;
+            }
+        }
+    }
+    // 4. PAUSE
+    else if (gameState === "paused") {
         if (isInside(btnResume)) {
             gameState = "playing";
         } else if (isInside(btnBackToMenu)) {
@@ -361,8 +454,8 @@ function draw() {
         }
     }
 
-    // 2. Desenha o jogador
-    if (gameState !== "menu") {
+    // 2. Desenha o jogador (fora dos menus)
+    if (gameState === "playing" || gameState === "paused") {
         let keyName = "playerDown1";
         if (player.direction === "up") keyName = "playerUp" + animFrame;
         if (player.direction === "down") keyName = "playerDown" + animFrame;
@@ -381,8 +474,8 @@ function draw() {
         }
     }
 
-    // 3. TELA DE MENU PRINCIPAL
-    if (gameState === "menu") {
+    // Fundo dos menus
+    if (gameState !== "playing") {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -391,7 +484,10 @@ function draw() {
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+    }
 
+    // 3. TELA DE MENU PRINCIPAL
+    if (gameState === "menu") {
         ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
         ctx.fillStyle = "#000000";
@@ -400,19 +496,65 @@ function draw() {
         ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 110);
 
         drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
-        drawButton(btnContinueGame, "CONTINUAR", "#1565c0");
+        drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
 
-        // Botão Dinâmico de Login/Logout
         const authLabel = currentUser ? `SAIR (${currentUser.displayName.split(" ")[0]})` : "ENTRAR C/ GOOGLE";
         const authColor = currentUser ? "#c62828" : "#db4437";
         drawButton(btnAuth, authLabel, authColor);
     }
 
-    // 4. TELA DE PAUSE
-    if (gameState === "paused") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 4. TELA DE CRIAR NOVO SAVE (DIGITAR NOME)
+    if (gameState === "new_game_prompt") {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("NOME DO NOVO MUNDO:", canvas.width / 2, canvas.height / 2 - 80);
 
+        // Caixa de entrada de texto
+        ctx.fillStyle = "#222222";
+        ctx.fillRect(canvas.width / 2 - 150, canvas.height / 2 - 40, 300, 50);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(canvas.width / 2 - 150, canvas.height / 2 - 40, 300, 50);
+
+        // Nome sendo digitado
+        ctx.fillStyle = "#00ffcc";
+        ctx.font = "22px Arial";
+        ctx.fillText(newSaveInputName + "|", canvas.width / 2, canvas.height / 2 - 10);
+
+        drawButton(btnConfirmNewSave, "CRIAR MUNDO", "#2e7d32");
+        drawButton(btnCancelNewSave, "VOLTAR", "#c62828");
+    }
+
+    // 5. TELA DE CARREGAR SAVES
+    if (gameState === "load_menu") {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("SELECIONE O SAVE:", canvas.width / 2, 100);
+
+        if (savesList.length === 0) {
+            ctx.fillStyle = "#aaaaaa";
+            ctx.font = "20px Arial";
+            ctx.fillText("Nenhum save encontrado.", canvas.width / 2, 220);
+        } else {
+            const slotWidth = 320;
+            const slotHeight = 45;
+            const startX = canvas.width / 2 - slotWidth / 2;
+            let startY = 150;
+
+            for (let i = 0; i < savesList.length && i < 5; i++) {
+                const saveItem = savesList[i];
+                const btnSlot = { x: startX, y: startY + (i * 55), width: slotWidth, height: slotHeight };
+                drawButton(btnSlot, `${saveItem.name} (${saveItem.date})`, "#1565c0");
+            }
+        }
+
+        drawButton(btnBackFromLoad, "VOLTAR", "#c62828");
+    }
+
+    // 6. TELA DE PAUSE
+    if (gameState === "paused") {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 36px Arial";
         ctx.textAlign = "center";
