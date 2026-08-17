@@ -1,4 +1,4 @@
-# joguim# 🗡️ endless—actually, no
+# 🗡️ endless—actually, no
 
 Um jogo de RPG em 2D feito em JavaScript e HTML5 Canvas.
 
@@ -9,4 +9,4 @@ Um jogo de RPG em 2D feito em JavaScript e HTML5 Canvas.
 ## 🚀 Como Jogar
 Acesse o link do jogo: [Clique aqui para jogar][def]
 
-[def]: https://nao-foi-eu.github.io/joguim/
+[def]: https://joguim-rho.vercel.app/
