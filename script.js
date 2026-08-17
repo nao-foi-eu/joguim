@@ -673,4 +673,5 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+resizeCanvas();
 gameLoop();
