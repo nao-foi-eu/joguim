@@ -5,17 +5,44 @@ const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 2000;
 const TILE_SIZE = 64;
 
-// --- ESTADOS DO JOGO ("menu", "auth_menu", "new_game_prompt", "load_menu", "playing", "paused") ---
-let gameState = "menu"; 
+let gameState = "menu";
 
-// --- FORMULÁRIO DE AUTENTICAÇÃO ---
-let authMode = "login"; // "login" ou "register"
+let currentCutsceneIndex = 0;
+let cutsceneFrame = 0;
+let cutsceneTimer = 0;
+const CUTSCENE_SPEED = 12;
+const TOTAL_CUTSCENE_FRAMES = 4;
+const CUTSCENE_FRAME_WIDTH = 128;
+const CUTSCENE_FRAME_HEIGHT = 128;
+
+const cutsceneDialogues = [
+    {
+        text: "Acordo em um lugar desconhecido... Onde estou?",
+        subtext: "Clique ou aperte ESPAÇO / ENTER para continuar..."
+    },
+    {
+        text: "Estranho... Este mundo parece não ter fim.",
+        subtext: "Clique ou aperte ESPAÇO / ENTER para continuar..."
+    },
+    {
+        text: "Preciso explorar e encontrar respostas!",
+        subtext: "Pressione ESPAÇO para começar a jogar!"
+    }
+];
+
+function advanceCutscene() {
+    currentCutsceneIndex++;
+    if (currentCutsceneIndex >= cutsceneDialogues.length) {
+        gameState = "playing";
+    }
+}
+
+let authMode = "login";
 let inputEmail = "";
 let inputPassword = "";
-let activeInput = "email"; // "email" ou "password"
+let activeInput = "email";
 let authErrorMessage = "";
 
-// --- SISTEMA DE SAVES ---
 let savesList = [];
 let currentSaveId = null;
 let currentSaveName = "Novo Mundo";
@@ -34,7 +61,6 @@ function saveSavesList() {
 
 loadSavesList();
 
-// --- FIREBASE AUTHENTICATION ---
 let currentUser = null;
 
 window.addEventListener("load", () => {
@@ -103,7 +129,6 @@ async function saveGameToCloud() {
     }
 }
 
-// --- ANIMAÇÃO ---
 let animFrame = 1;
 let animTimer = 0;
 const ANIM_SPEED = 10;
@@ -115,12 +140,10 @@ function pseudoRandom(seed) {
 
 let mapSeed = Math.floor(Math.random() * 999999);
 
-// --- BOTÕES ---
 const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 40, width: 220, height: 45 };
 const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 15, width: 220, height: 45 };
 const btnAuthMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 70, width: 220, height: 45 };
 
-// Botões Tela de Auth
 const tabLogin = { x: canvas.width / 2 - 120, y: 150, width: 115, height: 40 };
 const tabRegister = { x: canvas.width / 2 + 5, y: 150, width: 115, height: 40 };
 const inputEmailBox = { x: canvas.width / 2 - 120, y: 220, width: 240, height: 40 };
@@ -128,16 +151,13 @@ const inputPassBox = { x: canvas.width / 2 - 120, y: 290, width: 240, height: 40
 const btnSubmitAuth = { x: canvas.width / 2 - 120, y: 360, width: 240, height: 45 };
 const btnBackFromAuth = { x: canvas.width / 2 - 120, y: 415, width: 240, height: 40 };
 
-// Telas de Save
 const btnConfirmNewSave = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 30, width: 220, height: 45 };
 const btnCancelNewSave = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 85, width: 220, height: 45 };
 const btnBackFromLoad = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 180, width: 220, height: 45 };
 
-// Pause
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
-// --- CARREGAMENTO DAS IMAGENS ---
 const images = {};
 function loadImage(key, src) {
     images[key] = new Image();
@@ -149,6 +169,8 @@ loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
 loadImage("stone", "assets/images/stone.png");
 loadImage("menuBg", "assets/images/menu_bg.png");
+
+loadImage("cutsceneAnim", "assets/images/cutscene_anim.png");
 
 loadImage("stoneEarthTransition", "assets/images/stone_earth_transition.png");
 loadImage("grassEarthStoneTop", "assets/images/grass_earth_stone_top.png");
@@ -170,7 +192,6 @@ loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 
-// --- MAPA ---
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
 const rows = WORLD_HEIGHT / TILE_SIZE;
@@ -189,20 +210,16 @@ function generateMap() {
 
             if (isCenterSpawn) {
                 mapGrid[r][c] = "stone";
-            } 
-            // QUINA DE CIMA (Linha superior da terra + borda da pedra)
+            }
             else if (c === transitionCol && r === centerRow - 1) {
                 mapGrid[r][c] = "grassEarthStoneTop";
             }
-            // TRANSIÇÃO DO MEIO (Linha central da terra + borda da pedra)
             else if (c === transitionCol && r === centerRow) {
                 mapGrid[r][c] = "stoneEarthTransition";
-            } 
-            // QUINA DE BAIXO (Linha inferior da terra + borda da pedra)
+            }
             else if (c === transitionCol && r === centerRow + 1) {
                 mapGrid[r][c] = "grassEarthStoneBottom";
             }
-            // LADO ESQUERDO (Terra e Gramas)
             else if (c < transitionCol) {
                 const uniqueValue = currentSeed + (r * cols + c);
                 const randomVal = pseudoRandom(uniqueValue);
@@ -216,8 +233,7 @@ function generateMap() {
                 } else {
                     mapGrid[r][c] = "grass" + (Math.floor(randomVal * 3) + 1);
                 }
-            } 
-            // RESTO DO MAPA (Grama padrão)
+            }
             else {
                 const uniqueValue = currentSeed + (r * cols + c);
                 const randomVal = pseudoRandom(uniqueValue);
@@ -229,7 +245,6 @@ function generateMap() {
 
 generateMap();
 
-// --- PLAYER E CAMERA ---
 const player = {
     worldX: centerCol * TILE_SIZE,
     worldY: centerRow * TILE_SIZE,
@@ -244,7 +259,7 @@ function createAndStartNewGame(saveName) {
     currentSaveId = "save_" + Date.now();
     currentSaveName = saveName || "Mundo Sem Nome";
     mapSeed = Math.floor(Math.random() * 999999);
-    
+
     player.worldX = centerCol * TILE_SIZE;
     player.worldY = centerRow * TILE_SIZE;
     player.direction = "down";
@@ -263,7 +278,10 @@ function createAndStartNewGame(saveName) {
     savesList.push(newSaveObj);
     saveSavesList();
     saveGameToCloud();
-    gameState = "playing";
+
+    currentCutsceneIndex = 0;
+    cutsceneFrame = 0;
+    gameState = "cutscene";
 }
 
 function loadSelectedSave(saveObj) {
@@ -288,11 +306,16 @@ function saveGameLocal() {
     }
 }
 
-// --- TECLADO E DIGITAÇÃO ---
-window.addEventListener("keydown", (e) => { 
-    keys[e.key] = true; 
+window.addEventListener("keydown", (e) => {
+    keys[e.key] = true;
 
-    // Digitação do Menu de Autenticação
+    if (gameState === "cutscene") {
+        if (e.key === " " || e.key === "Enter") {
+            advanceCutscene();
+        }
+        return;
+    }
+
     if (gameState === "auth_menu") {
         let currentText = activeInput === "email" ? inputEmail : inputPassword;
 
@@ -312,7 +335,6 @@ window.addEventListener("keydown", (e) => {
         return;
     }
 
-    // Digitação no Novo Save
     if (gameState === "new_game_prompt") {
         if (e.key === "Backspace") {
             newSaveInputName = newSaveInputName.slice(0, -1);
@@ -324,7 +346,7 @@ window.addEventListener("keydown", (e) => {
         }
         return;
     }
-    
+
     if (e.key === "p" || e.key === "P") {
         if (gameState === "playing") gameState = "paused";
         else if (gameState === "paused") gameState = "playing";
@@ -333,7 +355,6 @@ window.addEventListener("keydown", (e) => {
 
 window.addEventListener("keyup", (e) => { keys[e.key] = false; });
 
-// --- CLIQUES DO MOUSE ---
 canvas.addEventListener("click", (e) => {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
@@ -344,7 +365,11 @@ canvas.addEventListener("click", (e) => {
                mouseY >= btn.y && mouseY <= btn.y + btn.height;
     }
 
-    // MENU PRINCIPAL
+    if (gameState === "cutscene") {
+        advanceCutscene();
+        return;
+    }
+
     if (gameState === "menu") {
         if (isInside(btnNewGame)) {
             newSaveInputName = "Mundo " + (savesList.length + 1);
@@ -355,8 +380,7 @@ canvas.addEventListener("click", (e) => {
             if (currentUser) handleLogout();
             else gameState = "auth_menu";
         }
-    } 
-    // TELA DE AUTENTICAÇÃO
+    }
     else if (gameState === "auth_menu") {
         if (isInside(tabLogin)) authMode = "login";
         else if (isInside(tabRegister)) authMode = "register";
@@ -365,7 +389,6 @@ canvas.addEventListener("click", (e) => {
         else if (isInside(btnSubmitAuth)) handleAuthAction();
         else if (isInside(btnBackFromAuth)) gameState = "menu";
     }
-    // TELA DE CRIAR SAVE
     else if (gameState === "new_game_prompt") {
         if (isInside(btnConfirmNewSave) && newSaveInputName.trim() !== "") {
             createAndStartNewGame(newSaveInputName);
@@ -374,7 +397,6 @@ canvas.addEventListener("click", (e) => {
             gameState = "menu";
         }
     }
-    // TELA DE CARREGAR SAVES
     else if (gameState === "load_menu") {
         if (isInside(btnBackFromLoad)) {
             gameState = "menu";
@@ -394,7 +416,6 @@ canvas.addEventListener("click", (e) => {
             }
         }
     }
-    // PAUSE
     else if (gameState === "paused") {
         if (isInside(btnResume)) gameState = "playing";
         else if (isInside(btnBackToMenu)) {
@@ -469,7 +490,6 @@ function drawInputBox(box, label, value, isActive, isPassword = false) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. Desenha o Mapa
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
             const tileX = c * TILE_SIZE;
@@ -480,7 +500,6 @@ function draw() {
         }
     }
 
-    // 2. Desenha o Jogador
     if (gameState === "playing" || gameState === "paused") {
         let keyName = "playerDown" + animFrame;
         if (player.direction === "up") keyName = "playerUp" + animFrame;
@@ -494,8 +513,7 @@ function draw() {
         }
     }
 
-    // Fundo dos Menus
-    if (gameState !== "playing") {
+    if (gameState !== "playing" && gameState !== "cutscene") {
         ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -506,7 +524,6 @@ function draw() {
         }
     }
 
-    // 3. MENU PRINCIPAL
     if (gameState === "menu") {
         ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
@@ -523,7 +540,6 @@ function draw() {
         drawButton(btnAuthMenu, authLabel, authColor);
     }
 
-    // 4. TELA DE LOGIN / CADASTRO
     if (gameState === "auth_menu") {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 28px Arial";
@@ -547,7 +563,6 @@ function draw() {
         drawButton(btnBackFromAuth, "VOLTAR", "#c62828");
     }
 
-    // 5. TELA DE NOVO SAVE
     if (gameState === "new_game_prompt") {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 28px Arial";
@@ -568,7 +583,6 @@ function draw() {
         drawButton(btnCancelNewSave, "VOLTAR", "#c62828");
     }
 
-    // 6. TELA DE CARREGAR SAVES
     if (gameState === "load_menu") {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 28px Arial";
@@ -595,7 +609,53 @@ function draw() {
         drawButton(btnBackFromLoad, "VOLTAR", "#c62828");
     }
 
-    // 7. PAUSE
+    if (gameState === "cutscene") {
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        cutsceneTimer++;
+        if (cutsceneTimer >= CUTSCENE_SPEED) {
+            cutsceneFrame = (cutsceneFrame + 1) % TOTAL_CUTSCENE_FRAMES;
+            cutsceneTimer = 0;
+        }
+
+        const animImg = images.cutsceneAnim;
+        if (animImg && animImg.complete && animImg.naturalWidth !== 0) {
+            const drawX = canvas.width / 2 - CUTSCENE_FRAME_WIDTH / 2;
+            const drawY = canvas.height / 2 - CUTSCENE_FRAME_HEIGHT / 2 - 40;
+
+            ctx.drawImage(
+                animImg,
+                cutsceneFrame * CUTSCENE_FRAME_WIDTH, 0,
+                CUTSCENE_FRAME_WIDTH, CUTSCENE_FRAME_HEIGHT,
+                drawX, drawY,
+                CUTSCENE_FRAME_WIDTH, CUTSCENE_FRAME_HEIGHT
+            );
+        }
+
+        const scene = cutsceneDialogues[currentCutsceneIndex];
+        const boxX = 50;
+        const boxY = canvas.height - 160;
+        const boxW = canvas.width - 100;
+        const boxH = 110;
+
+        ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText(scene.text, boxX + 20, boxY + 45);
+
+        ctx.fillStyle = "#00ffcc";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "right";
+        ctx.fillText(scene.subtext, boxX + boxW - 20, boxY + boxH - 15);
+    }
+
     if (gameState === "paused") {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 36px Arial";
