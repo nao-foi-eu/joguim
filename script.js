@@ -1,6 +1,9 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
 const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 2000;
 const TILE_SIZE = 64;
@@ -157,6 +160,29 @@ const btnBackFromLoad = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 180,
 
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
+
+function updateUIPositions() {
+    btnNewGame.x = canvas.width / 2 - 110; btnNewGame.y = canvas.height / 2 - 40;
+    btnContinueGame.x = canvas.width / 2 - 110; btnContinueGame.y = canvas.height / 2 + 15;
+    btnAuthMenu.x = canvas.width / 2 - 110; btnAuthMenu.y = canvas.height / 2 + 70;
+    tabLogin.x = canvas.width / 2 - 120;
+    tabRegister.x = canvas.width / 2 + 5;
+    inputEmailBox.x = canvas.width / 2 - 120;
+    inputPassBox.x = canvas.width / 2 - 120;
+    btnSubmitAuth.x = canvas.width / 2 - 120;
+    btnBackFromAuth.x = canvas.width / 2 - 120;
+    btnConfirmNewSave.x = canvas.width / 2 - 110; btnConfirmNewSave.y = canvas.height / 2 + 30;
+    btnCancelNewSave.x = canvas.width / 2 - 110; btnCancelNewSave.y = canvas.height / 2 + 85;
+    btnBackFromLoad.x = canvas.width / 2 - 110; btnBackFromLoad.y = canvas.height / 2 + 180;
+    btnResume.x = canvas.width / 2 - 110; btnResume.y = canvas.height / 2 - 30;
+    btnBackToMenu.x = canvas.width / 2 - 110; btnBackToMenu.y = canvas.height / 2 + 40;
+}
+
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    updateUIPositions();
+});
 
 const images = {};
 function loadImage(key, src) {
@@ -673,5 +699,4 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
-resizeCanvas();
 gameLoop();
