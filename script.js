@@ -1079,7 +1079,7 @@ function draw() {
             ctx.fillStyle = "#ffffff";
             ctx.font = "20px MinhaFonte";
             ctx.textAlign = "left";
-            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 1000, boxY + 75);
+            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 100, boxY + 75);
 
             ctx.fillStyle = "#00ffcc";
             ctx.font = "14px MinhaFonte";
