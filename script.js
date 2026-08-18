@@ -549,7 +549,7 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (gameState === "paused") {
-        ctx.filter = "blur(8px)";
+        ctx.filter = "blur(4px)";
         ctx.drawImage(offscreenCanvas, 0, 0);
         ctx.filter = "none";
 
