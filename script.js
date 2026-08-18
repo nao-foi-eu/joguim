@@ -376,6 +376,7 @@ loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 loadImage("npc1", "assets/images/npc1.png");
+loadImage("dialogueBox", "assets/images/dialogue_box.png");
 
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
@@ -433,7 +434,7 @@ generateMap();
 const player = {
     worldX: centerCol * TILE_SIZE,
     worldY: centerRow * TILE_SIZE,
-    width: 64, height: 64, speed: 5,
+    width: 64, height: 64, speed: 3,
     direction: "down", isMoving: false
 };
 
@@ -449,8 +450,10 @@ const npc = {
 let npcDialogueIndex = -1;
 const npcDialogues = [
     "Olá, viajante!",
-    "Parece que você acabou de chegar neste mundo...",
-    "Depois eu te conto mais coisas!"
+    "...",
+    "Você não e de muitas palavras ne?...",
+    "'esquisito' então... continue sua viajem... ou seila",
+    "poderia parar de me encarar?"
 ];
 
 function isNearNpc() {
@@ -690,10 +693,10 @@ function update() {
     let nextY = player.worldY;
     player.isMoving = false;
 
-    if (keys["ArrowUp"] || keys["w"] || keys["W"]) { nextY -= player.speed; player.direction = "up"; player.isMoving = true; }
-    if (keys["ArrowDown"] || keys["s"] || keys["S"]) { nextY += player.speed; player.direction = "down"; player.isMoving = true; }
-    if (keys["ArrowLeft"] || keys["a"] || keys["A"]) { nextX -= player.speed; player.direction = "left"; player.isMoving = true; }
-    if (keys["ArrowRight"] || keys["d"] || keys["D"]) { nextX += player.speed; player.direction = "right"; player.isMoving = true; }
+    if (keys["w"] || keys["W"]) { nextY -= player.speed; player.direction = "up"; player.isMoving = true; }
+    if (keys["s"] || keys["S"]) { nextY += player.speed; player.direction = "down"; player.isMoving = true; }
+    if (keys["a"] || keys["A"]) { nextX -= player.speed; player.direction = "left"; player.isMoving = true; }
+    if (keys["d"] || keys["D"]) { nextX += player.speed; player.direction = "right"; player.isMoving = true; }
 
     if (nextX >= 0 && nextX + player.width <= WORLD_WIDTH &&
         !rectsOverlap(nextX, player.worldY, player.width, player.height, npc.worldX, npc.worldY, npc.width, npc.height)) {
@@ -731,7 +734,7 @@ function drawButton(btn, text, bgColor = "#2e7d32") {
     ctx.strokeRect(btn.x, btn.y, btn.width, btn.height);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 18px Arial";
+    ctx.font = "bold 18px MinhaFonte";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, btn.x + btn.width / 2, btn.y + btn.height / 2);
@@ -745,12 +748,12 @@ function drawInputBox(box, label, value, isActive, isPassword = false) {
     ctx.strokeRect(box.x, box.y, box.width, box.height);
 
     ctx.fillStyle = "#aaaaaa";
-    ctx.font = "14px Arial";
+    ctx.font = "14px MinhaFonte";
     ctx.textAlign = "left";
     ctx.fillText(label, box.x, box.y - 6);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = "16px Arial";
+    ctx.font = "16px MinhaFonte";
     const displayVal = isPassword ? "*".repeat(value.length) : value;
     ctx.fillText(displayVal + (isActive ? "|" : ""), box.x + 10, box.y + 25);
 }
@@ -854,7 +857,7 @@ function draw() {
             const w = h * (titleImg.naturalWidth / titleImg.naturalHeight);
             ctx.drawImage(titleImg, cx - w / 2, canvas.height / 2 - 170, w, h);
         } else {
-            ctx.font = "bold 38px Arial";
+            ctx.font = "bold 38px MinhaFonte";
             ctx.textAlign = "center";
             ctx.textBaseline = "alphabetic";
             ctx.fillStyle = "#000000";
@@ -890,7 +893,7 @@ function draw() {
 
     if (gameState === "auth_menu") {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 28px Arial";
+        ctx.font = "bold 28px MinhaFonte";
         ctx.textAlign = "center";
         ctx.fillText("CONTA DO JOGO", canvas.width / 2, 100);
 
@@ -902,7 +905,7 @@ function draw() {
 
         if (authErrorMessage) {
             ctx.fillStyle = "#ff4444";
-            ctx.font = "14px Arial";
+            ctx.font = "14px MinhaFonte";
             ctx.textAlign = "center";
             ctx.fillText(authErrorMessage, canvas.width / 2, 345);
         }
@@ -913,7 +916,7 @@ function draw() {
 
     if (gameState === "profile") {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 28px Arial";
+        ctx.font = "bold 28px MinhaFonte";
         ctx.textAlign = "center";
         ctx.fillText("SEU PERFIL", canvas.width / 2, 90);
 
@@ -921,7 +924,7 @@ function draw() {
 
         if (profileNick) {
             ctx.fillStyle = "#00ffcc";
-            ctx.font = "bold 18px Arial";
+            ctx.font = "bold 18px MinhaFonte";
             ctx.fillText(profileNick, canvas.width / 2, 280);
         }
 
@@ -931,13 +934,13 @@ function draw() {
 
         if (profileErrorMessage) {
             ctx.fillStyle = "#ff4444";
-            ctx.font = "14px Arial";
+            ctx.font = "14px MinhaFonte";
             ctx.textAlign = "center";
             ctx.fillText(profileErrorMessage, canvas.width / 2, 420);
         }
         if (profileSavedMessage) {
             ctx.fillStyle = "#00ff88";
-            ctx.font = "14px Arial";
+            ctx.font = "14px MinhaFonte";
             ctx.textAlign = "center";
             ctx.fillText(profileSavedMessage, canvas.width / 2, 420);
         }
@@ -949,7 +952,7 @@ function draw() {
 
     if (gameState === "new_game_prompt") {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 28px Arial";
+        ctx.font = "bold 28px MinhaFonte";
         ctx.textAlign = "center";
         ctx.fillText("NOME DO NOVO MUNDO:", canvas.width / 2, canvas.height / 2 - 80);
 
@@ -960,7 +963,7 @@ function draw() {
         ctx.strokeRect(canvas.width / 2 - 150, canvas.height / 2 - 40, 300, 50);
 
         ctx.fillStyle = "#00ffcc";
-        ctx.font = "22px Arial";
+        ctx.font = "22px MinhaFonte";
         ctx.fillText(newSaveInputName + "|", canvas.width / 2, canvas.height / 2 - 10);
 
         drawButton(btnConfirmNewSave, "CRIAR MUNDO", "#2e7d32");
@@ -969,13 +972,13 @@ function draw() {
 
     if (gameState === "load_menu") {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 28px Arial";
+        ctx.font = "bold 28px MinhaFonte";
         ctx.textAlign = "center";
         ctx.fillText("SELECIONE O SAVE:", canvas.width / 2, 100);
 
         if (savesList.length === 0) {
             ctx.fillStyle = "#aaaaaa";
-            ctx.font = "20px Arial";
+            ctx.font = "20px MinhaFonte";
             ctx.fillText("Nenhum save encontrado.", canvas.width / 2, 220);
         } else {
             const slotWidth = 320;
@@ -1023,26 +1026,31 @@ function draw() {
         const boxW = canvas.width - 100;
         const boxH = 110;
 
-        ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
-        ctx.fillRect(boxX, boxY, boxW, boxH);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(boxX, boxY, boxW, boxH);
+               const cBoxImg = images.dialogueBox;
+        if (cBoxImg && cBoxImg.complete && cBoxImg.naturalWidth !== 0) {
+            ctx.drawImage(cBoxImg, boxX, boxY, boxW, boxH);
+        } else {
+            ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
+            ctx.fillRect(boxX, boxY, boxW, boxH);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(boxX, boxY, boxW, boxH);
+        }
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "20px Arial";
+        ctx.font = "20px MinhaFonte";
         ctx.textAlign = "left";
         ctx.fillText(scene.text, boxX + 20, boxY + 45);
 
         ctx.fillStyle = "#00ffcc";
-        ctx.font = "14px Arial";
+        ctx.font = "14px MinhaFonte";
         ctx.textAlign = "right";
         ctx.fillText(scene.subtext, boxX + boxW - 20, boxY + boxH - 15);
     }
 
     if (gameState === "paused") {
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 36px Arial";
+        ctx.font = "bold 36px MinhaFonte";
         ctx.textAlign = "center";
         ctx.fillText("JOGO PAUSADO", canvas.width / 2, canvas.height / 2 - 100);
 
@@ -1051,30 +1059,35 @@ function draw() {
     }
 
     if (gameState === "playing") {
-        if (npcDialogueIndex >= 0) {
+               if (npcDialogueIndex >= 0) {
             const boxX = 50;
-            const boxY = canvas.height - 160;
+            const boxY = canvas.height - 170;
             const boxW = canvas.width - 100;
-            const boxH = 110;
+            const boxH = 130;
 
-            ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
-            ctx.fillRect(boxX, boxY, boxW, boxH);
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(boxX, boxY, boxW, boxH);
+            const boxImg = images.dialogueBox;
+            if (boxImg && boxImg.complete && boxImg.naturalWidth !== 0) {
+                ctx.drawImage(boxImg, boxX, boxY, boxW, boxH);
+            } else {
+                ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
+                ctx.fillRect(boxX, boxY, boxW, boxH);
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX, boxY, boxW, boxH);
+            }
 
             ctx.fillStyle = "#ffffff";
-            ctx.font = "20px Arial";
+            ctx.font = "20px MinhaFonte";
             ctx.textAlign = "left";
-            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 20, boxY + 45);
+            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 30, boxY + 55);
 
             ctx.fillStyle = "#00ffcc";
-            ctx.font = "14px Arial";
+            ctx.font = "14px MinhaFonte";
             ctx.textAlign = "right";
-            ctx.fillText("Espaço / E para continuar...", boxX + boxW - 20, boxY + boxH - 15);
+            ctx.fillText("Espaço / E para continuar...", boxX + boxW - 30, boxY + boxH - 25);
         } else if (isNearNpc()) {
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 16px Arial";
+            ctx.font = "bold 16px MinhaFonte";
             ctx.textAlign = "center";
             ctx.fillText("E", npc.worldX - camera.x + npc.width / 2, npc.worldY - camera.y - 10);
         }

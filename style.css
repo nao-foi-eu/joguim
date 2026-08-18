@@ -9,3 +9,8 @@ canvas {
     display: block;
     background-color: #2b2b2b;
 }
+
+@font-face {
+    font-family: 'MinhaFonte';
+    src: url('assets/fonte.ttf') format('truetype');
+}
