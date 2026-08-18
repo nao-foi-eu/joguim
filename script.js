@@ -1,10 +1,8 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const offscreenCanvas = document.createElement('canvas');
-const offCtx = offscreenCanvas.getContext('2d');
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const offscreenCanvas = document.createElement("canvas");
+const offCtx = offscreenCanvas.getContext("2d");
 
 const WORLD_WIDTH = 2000;
 const WORLD_HEIGHT = 2000;
@@ -48,6 +46,13 @@ let inputPassword = "";
 let activeInput = "email";
 let authErrorMessage = "";
 
+let profileNick = "";
+let profileAvatar = "";
+let profileAvatarImg = null;
+let profileInput = "";
+let profileErrorMessage = "";
+let profileSavedMessage = "";
+
 let savesList = [];
 let currentSaveId = null;
 let currentSaveName = "Novo Mundo";
@@ -74,10 +79,10 @@ window.addEventListener("load", () => {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                console.log("Logado como:", user.email);
+                loadProfile();
             } else {
                 currentUser = null;
-                console.log("Deslogado.");
+                resetProfile();
             }
         });
     }
@@ -101,7 +106,11 @@ async function handleAuthAction() {
             const res = await createUserWithEmailAndPassword(auth, inputEmail, inputPassword);
             currentUser = res.user;
         }
-        gameState = "menu";
+        loadProfile();
+        profileInput = "";
+        profileErrorMessage = "";
+        profileSavedMessage = "";
+        gameState = "profile";
     } catch (e) {
         console.error(e);
         authErrorMessage = "Erro: " + (e.code === "auth/invalid-credential" ? "Dados incorretos" : "Falha na conta");
@@ -113,7 +122,137 @@ async function handleLogout() {
     const { auth, signOut } = window.firebaseAuth;
     await signOut(auth);
     currentUser = null;
+    resetProfile();
 }
+
+function resetProfile() {
+    profileNick = "";
+    profileAvatar = "";
+    profileAvatarImg = null;
+    profileInput = "";
+    profileErrorMessage = "";
+    profileSavedMessage = "";
+}
+
+function setProfileAvatar(dataUrl) {
+    profileAvatar = dataUrl || "";
+    if (profileAvatar) {
+        profileAvatarImg = new Image();
+        profileAvatarImg.src = profileAvatar;
+    } else {
+        profileAvatarImg = null;
+    }
+}
+
+function loadProfile() {
+    if (!currentUser) return;
+    const stored = localStorage.getItem("rpg_profile_" + currentUser.uid);
+    if (stored) {
+        try {
+            const data = JSON.parse(stored);
+            profileNick = data.nick || "";
+            setProfileAvatar(data.avatar || "");
+        } catch(e) {}
+    }
+    fetchProfileFromCloud();
+}
+
+function saveProfileLocal() {
+    if (!currentUser) return;
+    localStorage.setItem("rpg_profile_" + currentUser.uid, JSON.stringify({ nick: profileNick, avatar: profileAvatar }));
+}
+
+async function fetchProfileFromCloud() {
+    if (!currentUser || !window.firebaseAuth) return;
+    const { db, doc, getDoc } = window.firebaseAuth;
+    try {
+        const snap = await getDoc(doc(db, "users", currentUser.uid));
+        if (snap.exists()) {
+            const data = snap.data();
+            profileNick = data.nick || profileNick;
+            setProfileAvatar(data.avatar || profileAvatar);
+            saveProfileLocal();
+        }
+    } catch (e) {
+        console.error("Erro ao carregar perfil:", e);
+    }
+}
+
+async function saveProfileToCloud() {
+    if (!currentUser || !window.firebaseAuth) return;
+    const { db, doc, setDoc } = window.firebaseAuth;
+    try {
+        await setDoc(doc(db, "users", currentUser.uid), {
+            nick: profileNick,
+            avatar: profileAvatar,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
+    } catch (e) {
+        console.error("Erro ao salvar perfil:", e);
+    }
+}
+
+async function handleSaveProfile() {
+    profileErrorMessage = "";
+    profileSavedMessage = "";
+    const newNick = profileInput.trim();
+
+    if (newNick.length < 3 || newNick.length > 15) {
+        profileErrorMessage = "O nick deve ter entre 3 e 15 caracteres!";
+        return;
+    }
+
+    if (currentUser && window.firebaseAuth) {
+        const { db, doc, getDoc, setDoc } = window.firebaseAuth;
+        try {
+            const nickId = newNick.toLowerCase();
+            const snap = await getDoc(doc(db, "nicks", nickId));
+            if (snap.exists() && snap.data().uid !== currentUser.uid) {
+                profileErrorMessage = "Este nick já está sendo usado!";
+                return;
+            }
+            await setDoc(doc(db, "nicks", nickId), { uid: currentUser.uid });
+        } catch (e) {
+            profileErrorMessage = "Erro ao verificar o nick. Tente de novo.";
+            return;
+        }
+    }
+
+    profileNick = newNick;
+    saveProfileLocal();
+    saveProfileToCloud();
+    profileSavedMessage = "Perfil salvo com sucesso!";
+}
+
+const fileInput = document.createElement("input");
+fileInput.type = "file";
+fileInput.accept = "image/*";
+fileInput.style.display = "none";
+document.body.appendChild(fileInput);
+
+fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+            const size = 64;
+            const tmp = document.createElement("canvas");
+            tmp.width = size;
+            tmp.height = size;
+            const tctx = tmp.getContext("2d");
+            const min = Math.min(img.width, img.height);
+            tctx.drawImage(img, (img.width - min) / 2, (img.height - min) / 2, min, min, 0, 0, size, size);
+            setProfileAvatar(tmp.toDataURL("image/png"));
+            saveProfileLocal();
+            saveProfileToCloud();
+        };
+        img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+    fileInput.value = "";
+});
 
 async function saveGameToCloud() {
     saveGameLocal();
@@ -145,9 +284,8 @@ function pseudoRandom(seed) {
 
 let mapSeed = Math.floor(Math.random() * 999999);
 
-const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 40, width: 220, height: 45 };
-const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 15, width: 220, height: 45 };
-const btnAuthMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 70, width: 220, height: 45 };
+const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 55, width: 220, height: 45 };
+const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 5, width: 220, height: 45 };
 
 const tabLogin = { x: canvas.width / 2 - 120, y: 150, width: 115, height: 40 };
 const tabRegister = { x: canvas.width / 2 + 5, y: 150, width: 115, height: 40 };
@@ -163,10 +301,16 @@ const btnBackFromLoad = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 180,
 const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width: 220, height: 50 };
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
+const profileBtn = { x: canvas.width - 70, y: 20, r: 25 };
+const btnChangePhoto = { x: canvas.width / 2 - 110, y: 265, width: 220, height: 40 };
+const profileNickBox = { x: canvas.width / 2 - 120, y: 330, width: 240, height: 40 };
+const btnSaveProfile = { x: canvas.width / 2 - 110, y: 400, width: 220, height: 45 };
+const btnLogoutProfile = { x: canvas.width / 2 - 110, y: 455, width: 220, height: 40 };
+const btnBackFromProfile = { x: canvas.width / 2 - 110, y: 505, width: 220, height: 40 };
+
 function updateUIPositions() {
-    btnNewGame.x = canvas.width / 2 - 110; btnNewGame.y = canvas.height / 2 - 40;
-    btnContinueGame.x = canvas.width / 2 - 110; btnContinueGame.y = canvas.height / 2 + 15;
-    btnAuthMenu.x = canvas.width / 2 - 110; btnAuthMenu.y = canvas.height / 2 + 70;
+    btnNewGame.x = canvas.width / 2 - 110; btnNewGame.y = canvas.height / 2 - 55;
+    btnContinueGame.x = canvas.width / 2 - 110; btnContinueGame.y = canvas.height / 2 + 5;
     tabLogin.x = canvas.width / 2 - 120;
     tabRegister.x = canvas.width / 2 + 5;
     inputEmailBox.x = canvas.width / 2 - 120;
@@ -178,13 +322,21 @@ function updateUIPositions() {
     btnBackFromLoad.x = canvas.width / 2 - 110; btnBackFromLoad.y = canvas.height / 2 + 180;
     btnResume.x = canvas.width / 2 - 110; btnResume.y = canvas.height / 2 - 30;
     btnBackToMenu.x = canvas.width / 2 - 110; btnBackToMenu.y = canvas.height / 2 + 40;
+    profileBtn.x = canvas.width - 70;
+    btnChangePhoto.x = canvas.width / 2 - 110;
+    profileNickBox.x = canvas.width / 2 - 120;
+    btnSaveProfile.x = canvas.width / 2 - 110;
+    btnLogoutProfile.x = canvas.width / 2 - 110;
+    btnBackFromProfile.x = canvas.width / 2 - 110;
 }
 
-window.addEventListener("resize", () => {
+function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     updateUIPositions();
-});
+}
+
+window.addEventListener("resize", resizeCanvas);
 
 const images = {};
 function loadImage(key, src) {
@@ -363,6 +515,17 @@ window.addEventListener("keydown", (e) => {
         return;
     }
 
+    if (gameState === "profile") {
+        if (e.key === "Backspace") {
+            profileInput = profileInput.slice(0, -1);
+        } else if (e.key === "Enter") {
+            handleSaveProfile();
+        } else if (e.key.length === 1 && profileInput.length < 15) {
+            profileInput += e.key;
+        }
+        return;
+    }
+
     if (gameState === "new_game_prompt") {
         if (e.key === "Backspace") {
             newSaveInputName = newSaveInputName.slice(0, -1);
@@ -399,14 +562,25 @@ canvas.addEventListener("click", (e) => {
     }
 
     if (gameState === "menu") {
+        const pcx = profileBtn.x + profileBtn.r;
+        const pcy = profileBtn.y + profileBtn.r;
+        if (Math.hypot(mouseX - pcx, mouseY - pcy) <= profileBtn.r) {
+            if (currentUser) {
+                profileInput = profileNick;
+                profileErrorMessage = "";
+                profileSavedMessage = "";
+                gameState = "profile";
+            } else {
+                gameState = "auth_menu";
+            }
+            return;
+        }
+
         if (isInside(btnNewGame)) {
             newSaveInputName = "Mundo " + (savesList.length + 1);
             gameState = "new_game_prompt";
         } else if (isInside(btnContinueGame)) {
             gameState = "load_menu";
-        } else if (isInside(btnAuthMenu)) {
-            if (currentUser) handleLogout();
-            else gameState = "auth_menu";
         }
     }
     else if (gameState === "auth_menu") {
@@ -416,6 +590,15 @@ canvas.addEventListener("click", (e) => {
         else if (isInside(inputPassBox)) activeInput = "password";
         else if (isInside(btnSubmitAuth)) handleAuthAction();
         else if (isInside(btnBackFromAuth)) gameState = "menu";
+    }
+    else if (gameState === "profile") {
+        if (isInside(btnChangePhoto)) fileInput.click();
+        else if (isInside(btnSaveProfile)) handleSaveProfile();
+        else if (isInside(btnLogoutProfile)) {
+            handleLogout();
+            gameState = "menu";
+        }
+        else if (isInside(btnBackFromProfile)) gameState = "menu";
     }
     else if (gameState === "new_game_prompt") {
         if (isInside(btnConfirmNewSave) && newSaveInputName.trim() !== "") {
@@ -515,6 +698,34 @@ function drawInputBox(box, label, value, isActive, isPassword = false) {
     ctx.fillText(displayVal + (isActive ? "|" : ""), box.x + 10, box.y + 25);
 }
 
+function drawCircleAvatar(cx, cy, r) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.clip();
+
+    if (profileAvatarImg && profileAvatarImg.complete && profileAvatarImg.naturalWidth !== 0) {
+        ctx.drawImage(profileAvatarImg, cx - r, cy - r, r * 2, r * 2);
+    } else {
+        ctx.fillStyle = currentUser ? "#2e7d32" : "#555555";
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(cx, cy - r * 0.3, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy + r * 0.65, r * 0.6, Math.PI, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+}
+
 function draw() {
     if (offscreenCanvas.width !== canvas.width || offscreenCanvas.height !== canvas.height) {
         offscreenCanvas.width = canvas.width;
@@ -549,11 +760,11 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (gameState === "paused") {
-        ctx.filter = "blur(4px)";
+        ctx.filter = "blur(2px)";
         ctx.drawImage(offscreenCanvas, 0, 0);
         ctx.filter = "none";
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; 
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
         ctx.drawImage(offscreenCanvas, 0, 0);
@@ -573,6 +784,7 @@ function draw() {
     if (gameState === "menu") {
         ctx.font = "bold 38px Arial";
         ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
         ctx.fillStyle = "#000000";
         ctx.fillText("endless—actually, no", canvas.width / 2 + 3, canvas.height / 2 - 107);
         ctx.fillStyle = "#ffffff";
@@ -581,9 +793,7 @@ function draw() {
         drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
         drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
 
-        const authLabel = currentUser ? `SAIR (${currentUser.email.split("@")[0]})` : "ENTRAR / CRIAR CONTA";
-        const authColor = currentUser ? "#c62828" : "#db4437";
-        drawButton(btnAuthMenu, authLabel, authColor);
+        drawCircleAvatar(profileBtn.x + profileBtn.r, profileBtn.y + profileBtn.r, profileBtn.r);
     }
 
     if (gameState === "auth_menu") {
@@ -607,6 +817,42 @@ function draw() {
 
         drawButton(btnSubmitAuth, authMode === "login" ? "CONFIRMAR LOGIN" : "CADASTRAR", authMode === "login" ? "#1565c0" : "#2e7d32");
         drawButton(btnBackFromAuth, "VOLTAR", "#c62828");
+    }
+
+    if (gameState === "profile") {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("SEU PERFIL", canvas.width / 2, 90);
+
+        drawCircleAvatar(canvas.width / 2, 190, 60);
+
+        if (profileNick) {
+            ctx.fillStyle = "#00ffcc";
+            ctx.font = "bold 18px Arial";
+            ctx.fillText(profileNick, canvas.width / 2, 275);
+        }
+
+        drawButton(btnChangePhoto, "TROCAR FOTO", "#1565c0");
+
+        drawInputBox(profileNickBox, "Novo nick:", profileInput, true);
+
+        if (profileErrorMessage) {
+            ctx.fillStyle = "#ff4444";
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(profileErrorMessage, canvas.width / 2, 390);
+        }
+        if (profileSavedMessage) {
+            ctx.fillStyle = "#00ff88";
+            ctx.font = "14px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(profileSavedMessage, canvas.width / 2, 390);
+        }
+
+        drawButton(btnSaveProfile, "SALVAR", "#2e7d32");
+        drawButton(btnLogoutProfile, "SAIR DA CONTA", "#c62828");
+        drawButton(btnBackFromProfile, "VOLTAR", "#555555");
     }
 
     if (gameState === "new_game_prompt") {
@@ -719,4 +965,5 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+resizeCanvas();
 gameLoop();
