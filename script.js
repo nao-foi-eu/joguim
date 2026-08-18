@@ -1,5 +1,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const offscreenCanvas = document.createElement('canvas');
+const offCtx = offscreenCanvas.getContext('2d');
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -514,7 +516,12 @@ function drawInputBox(box, label, value, isActive, isPassword = false) {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (offscreenCanvas.width !== canvas.width || offscreenCanvas.height !== canvas.height) {
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+    }
+
+    offCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -522,7 +529,7 @@ function draw() {
             const tileY = r * TILE_SIZE;
             const tileType = mapGrid[r][c];
             const img = images[tileType];
-            if (img && img.complete) ctx.drawImage(img, tileX - camera.x, tileY - camera.y, TILE_SIZE, TILE_SIZE);
+            if (img && img.complete) offCtx.drawImage(img, tileX - camera.x, tileY - camera.y, TILE_SIZE, TILE_SIZE);
         }
     }
 
@@ -535,18 +542,31 @@ function draw() {
 
         const currentSprite = images[keyName];
         if (currentSprite && currentSprite.complete) {
-            ctx.drawImage(currentSprite, player.worldX - camera.x, player.worldY - camera.y, player.width, player.height);
+            offCtx.drawImage(currentSprite, player.worldX - camera.x, player.worldY - camera.y, player.width, player.height);
         }
     }
 
-    if (gameState !== "playing" && gameState !== "cutscene") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (images.menuBg && images.menuBg.complete && images.menuBg.naturalWidth !== 0) {
-            ctx.drawImage(images.menuBg, 0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    if (gameState === "paused") {
+        ctx.filter = "blur(8px)";
+        ctx.drawImage(offscreenCanvas, 0, 0);
+        ctx.filter = "none";
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.drawImage(offscreenCanvas, 0, 0);
+
+        if (gameState !== "playing" && gameState !== "cutscene") {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (images.menuBg && images.menuBg.complete && images.menuBg.naturalWidth !== 0) {
+                ctx.drawImage(images.menuBg, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
         }
     }
 
