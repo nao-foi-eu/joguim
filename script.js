@@ -375,6 +375,7 @@ loadImage("playerLeft1", "assets/images/player_left_1.png");
 loadImage("playerLeft2", "assets/images/player_left_2.png");
 loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
+loadImage("npc1", "assets/images/npc1.png");
 
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
@@ -438,6 +439,38 @@ const player = {
 
 const camera = { x: 0, y: 0 };
 const keys = {};
+const npc = {
+    worldX: (centerCol - 3) * TILE_SIZE,
+    worldY: (centerRow - 2) * TILE_SIZE,
+    width: 64,
+    height: 64
+};
+
+let npcDialogueIndex = -1;
+const npcDialogues = [
+    "Olá, viajante!",
+    "Parece que você acabou de chegar neste mundo...",
+    "Depois eu te conto mais coisas!"
+];
+
+function isNearNpc() {
+    const px = player.worldX + player.width / 2;
+    const py = player.worldY + player.height / 2;
+    const nx = npc.worldX + npc.width / 2;
+    const ny = npc.worldY + npc.height / 2;
+    return Math.hypot(px - nx, py - ny) < 90;
+}
+
+function advanceNpcDialogue() {
+    npcDialogueIndex++;
+    if (npcDialogueIndex >= npcDialogues.length) {
+        npcDialogueIndex = -1;
+    }
+}
+
+function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+}
 
 function createAndStartNewGame(saveName) {
     currentSaveId = "save_" + Date.now();
@@ -542,6 +575,16 @@ window.addEventListener("keydown", (e) => {
         return;
     }
 
+        if (gameState === "playing") {
+        if (e.key === "e" || e.key === "E") {
+            if (npcDialogueIndex >= 0) {
+                advanceNpcDialogue();
+            } else if (isNearNpc()) {
+                npcDialogueIndex = 0;
+            }
+        }
+    }
+
     if (e.key === "p" || e.key === "P") {
         if (gameState === "playing") gameState = "paused";
         else if (gameState === "paused") gameState = "playing";
@@ -641,7 +684,7 @@ canvas.addEventListener("click", (e) => {
 });
 
 function update() {
-    if (gameState !== "playing") return;
+    if (gameState !== "playing" || npcDialogueIndex >= 0) return;
 
     let nextX = player.worldX;
     let nextY = player.worldY;
@@ -652,8 +695,14 @@ function update() {
     if (keys["ArrowLeft"] || keys["a"] || keys["A"]) { nextX -= player.speed; player.direction = "left"; player.isMoving = true; }
     if (keys["ArrowRight"] || keys["d"] || keys["D"]) { nextX += player.speed; player.direction = "right"; player.isMoving = true; }
 
-    if (nextX >= 0 && nextX + player.width <= WORLD_WIDTH) player.worldX = nextX;
-    if (nextY >= 0 && nextY + player.height <= WORLD_HEIGHT) player.worldY = nextY;
+    if (nextX >= 0 && nextX + player.width <= WORLD_WIDTH &&
+        !rectsOverlap(nextX, player.worldY, player.width, player.height, npc.worldX, npc.worldY, npc.width, npc.height)) {
+        player.worldX = nextX;
+    }
+    if (nextY >= 0 && nextY + player.height <= WORLD_HEIGHT &&
+        !rectsOverlap(player.worldX, nextY, player.width, player.height, npc.worldX, npc.worldY, npc.width, npc.height)) {
+        player.worldY = nextY;
+    }
 
     camera.x = player.worldX - canvas.width / 2 + player.width / 2;
     camera.y = player.worldY - canvas.height / 2 + player.height / 2;
@@ -763,6 +812,13 @@ function draw() {
         if (currentSprite && currentSprite.complete) {
             offCtx.drawImage(currentSprite, player.worldX - camera.x, player.worldY - camera.y, player.width, player.height);
         }
+    }
+    const npcImg = images.npc1;
+    if (npcImg && npcImg.complete && npcImg.naturalWidth !== 0) {
+        offCtx.drawImage(npcImg, npc.worldX - camera.x, npc.worldY - camera.y, npc.width, npc.height);
+    } else {
+        offCtx.fillStyle = "#800080";
+        offCtx.fillRect(npc.worldX - camera.x, npc.worldY - camera.y, npc.width, npc.height);
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -992,6 +1048,36 @@ function draw() {
 
         drawButton(btnResume, "CONTINUAR", "#2e7d32");
         drawButton(btnBackToMenu, "MENU PRINCIPAL", "#c62828");
+    }
+
+    if (gameState === "playing") {
+        if (npcDialogueIndex >= 0) {
+            const boxX = 50;
+            const boxY = canvas.height - 160;
+            const boxW = canvas.width - 100;
+            const boxH = 110;
+
+            ctx.fillStyle = "rgba(20, 20, 30, 0.9)";
+            ctx.fillRect(boxX, boxY, boxW, boxH);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "20px Arial";
+            ctx.textAlign = "left";
+            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 20, boxY + 45);
+
+            ctx.fillStyle = "#00ffcc";
+            ctx.font = "14px Arial";
+            ctx.textAlign = "right";
+            ctx.fillText("Espaço / E para continuar...", boxX + boxW - 20, boxY + boxH - 15);
+        } else if (isNearNpc()) {
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 16px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("E", npc.worldX - camera.x + npc.width / 2, npc.worldY - camera.y - 10);
+        }
     }
 }
 
