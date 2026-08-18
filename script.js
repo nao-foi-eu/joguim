@@ -350,6 +350,9 @@ loadImage("grass2", "assets/images/grass2.png");
 loadImage("grass3", "assets/images/grass3.png");
 loadImage("stone", "assets/images/stone.png");
 loadImage("menuBg", "assets/images/menu_bg.png");
+loadImage("menuTitle", "assets/images/title.png");
+loadImage("btnNewImg", "assets/images/btn_new.png");
+loadImage("btnContinueImg", "assets/images/btn_continue.png");
 
 loadImage("cutsceneAnim", "assets/images/cutscene_anim.png");
 
@@ -786,17 +789,45 @@ function draw() {
         }
     }
 
-    if (gameState === "menu") {
-        ctx.font = "bold 38px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "alphabetic";
-        ctx.fillStyle = "#000000";
-        ctx.fillText("endless—actually, no", canvas.width / 2 + 3, canvas.height / 2 - 107);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText("endless—actually, no", canvas.width / 2, canvas.height / 2 - 110);
+       if (gameState === "menu") {
+        const cx = canvas.width / 2;
 
-        drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
-        drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
+        const titleImg = images.menuTitle;
+        if (titleImg && titleImg.complete && titleImg.naturalWidth !== 0) {
+            const h = 100;
+            const w = h * (titleImg.naturalWidth / titleImg.naturalHeight);
+            ctx.drawImage(titleImg, cx - w / 2, canvas.height / 2 - 170, w, h);
+        } else {
+            ctx.font = "bold 38px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "alphabetic";
+            ctx.fillStyle = "#000000";
+            ctx.fillText("endless—actually, no", cx + 3, canvas.height / 2 - 107);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText("endless—actually, no", cx, canvas.height / 2 - 110);
+        }
+
+        const newImg = images.btnNewImg;
+        if (newImg && newImg.complete && newImg.naturalWidth !== 0) {
+            const h = 60;
+            const w = h * (newImg.naturalWidth / newImg.naturalHeight);
+            btnNewGame.x = cx - w / 2; btnNewGame.y = canvas.height / 2 - 60;
+            btnNewGame.width = w; btnNewGame.height = h;
+            ctx.drawImage(newImg, btnNewGame.x, btnNewGame.y, w, h);
+        } else {
+            drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
+        }
+
+        const contImg = images.btnContinueImg;
+        if (contImg && contImg.complete && contImg.naturalWidth !== 0) {
+            const h = 60;
+            const w = h * (contImg.naturalWidth / contImg.naturalHeight);
+            btnContinueGame.x = cx - w / 2; btnContinueGame.y = canvas.height / 2 + 20;
+            btnContinueGame.width = w; btnContinueGame.height = h;
+            ctx.drawImage(contImg, btnContinueGame.x, btnContinueGame.y, w, h);
+        } else {
+            drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
+        }
 
         drawCircleAvatar(profileBtn.x + profileBtn.r, profileBtn.y + profileBtn.r, profileBtn.r);
     }
