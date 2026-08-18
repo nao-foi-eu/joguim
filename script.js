@@ -1079,12 +1079,12 @@ function draw() {
             ctx.fillStyle = "#ffffff";
             ctx.font = "20px MinhaFonte";
             ctx.textAlign = "left";
-            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 70, boxY + 75);
+            ctx.fillText(npcDialogues[npcDialogueIndex], boxX + 80, boxY + 75);
 
             ctx.fillStyle = "#00ffcc";
             ctx.font = "14px MinhaFonte";
             ctx.textAlign = "right";
-            ctx.fillText("E para continuar...", boxX + boxW - 20, boxY + boxH - 35);
+            ctx.fillText("E para continuar...", boxX + boxW - 80, boxY + boxH - 35);
         } else if (isNearNpc()) {
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 16px MinhaFonte";
