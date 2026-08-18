@@ -283,6 +283,7 @@ function pseudoRandom(seed) {
 }
 
 let mapSeed = Math.floor(Math.random() * 999999);
+let lastCloudSave = 0;
 
 const btnNewGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 55, width: 220, height: 45 };
 const btnContinueGame = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 5, width: 220, height: 45 };
@@ -302,11 +303,11 @@ const btnResume = { x: canvas.width / 2 - 110, y: canvas.height / 2 - 30, width:
 const btnBackToMenu = { x: canvas.width / 2 - 110, y: canvas.height / 2 + 40, width: 220, height: 50 };
 
 const profileBtn = { x: canvas.width - 70, y: 20, r: 25 };
-const btnChangePhoto = { x: canvas.width / 2 - 110, y: 265, width: 220, height: 40 };
-const profileNickBox = { x: canvas.width / 2 - 120, y: 330, width: 240, height: 40 };
-const btnSaveProfile = { x: canvas.width / 2 - 110, y: 400, width: 220, height: 45 };
-const btnLogoutProfile = { x: canvas.width / 2 - 110, y: 455, width: 220, height: 40 };
-const btnBackFromProfile = { x: canvas.width / 2 - 110, y: 505, width: 220, height: 40 };
+const btnChangePhoto = { x: canvas.width / 2 - 110, y: 300, width: 220, height: 40 };
+const profileNickBox = { x: canvas.width / 2 - 120, y: 360, width: 240, height: 40 };
+const btnSaveProfile = { x: canvas.width / 2 - 110, y: 430, width: 220, height: 45 };
+const btnLogoutProfile = { x: canvas.width / 2 - 110, y: 485, width: 220, height: 40 };
+const btnBackFromProfile = { x: canvas.width / 2 - 110, y: 535, width: 220, height: 40 };
 
 function updateUIPositions() {
     btnNewGame.x = canvas.width / 2 - 110; btnNewGame.y = canvas.height / 2 - 55;
@@ -660,7 +661,11 @@ function update() {
             animFrame = animFrame === 1 ? 2 : 1;
             animTimer = 0;
         }
-        saveGameToCloud();
+        const now = Date.now();
+        if (now - lastCloudSave > 3000) {
+            lastCloudSave = now;
+            saveGameToCloud();
+        }
     } else {
         animFrame = 1;
     }
@@ -830,7 +835,7 @@ function draw() {
         if (profileNick) {
             ctx.fillStyle = "#00ffcc";
             ctx.font = "bold 18px Arial";
-            ctx.fillText(profileNick, canvas.width / 2, 275);
+            ctx.fillText(profileNick, canvas.width / 2, 280);
         }
 
         drawButton(btnChangePhoto, "TROCAR FOTO", "#1565c0");
@@ -841,13 +846,13 @@ function draw() {
             ctx.fillStyle = "#ff4444";
             ctx.font = "14px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(profileErrorMessage, canvas.width / 2, 390);
+            ctx.fillText(profileErrorMessage, canvas.width / 2, 420);
         }
         if (profileSavedMessage) {
             ctx.fillStyle = "#00ff88";
             ctx.font = "14px Arial";
             ctx.textAlign = "center";
-            ctx.fillText(profileSavedMessage, canvas.width / 2, 390);
+            ctx.fillText(profileSavedMessage, canvas.width / 2, 420);
         }
 
         drawButton(btnSaveProfile, "SALVAR", "#2e7d32");
