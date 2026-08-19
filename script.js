@@ -377,6 +377,21 @@ loadImage("playerRight1", "assets/images/player_right_1.png");
 loadImage("playerRight2", "assets/images/player_right_2.png");
 loadImage("npc1", "assets/images/npc1.png");
 loadImage("dialogueBox", "assets/images/dialogue_box.png");
+loadImage("imgBtnEnter", "assets/images/btn_enter.png");
+loadImage("imgBtnRegister", "assets/images/btn_register.png");
+loadImage("imgBtnSubmitLogin", "assets/images/btn_submit_login.png");
+loadImage("imgBtnSubmitRegister", "assets/images/btn_submit_register.png");
+loadImage("imgBtnBackAuth", "assets/images/btn_back_auth.png");
+loadImage("imgBtnCreateWorld", "assets/images/btn_create_world.png");
+loadImage("imgBtnBackSave", "assets/images/btn_back_save.png");
+loadImage("imgBtnSlot", "assets/images/btn_slot.png");
+loadImage("imgBtnBackLoad", "assets/images/btn_back_load.png");
+loadImage("imgBtnResume", "assets/images/btn_resume.png");
+loadImage("imgBtnMenu", "assets/images/btn_menu.png");
+loadImage("imgBtnChangePhoto", "assets/images/btn_change_photo.png");
+loadImage("imgBtnSaveProfile", "assets/images/btn_save_profile.png");
+loadImage("imgBtnLogout", "assets/images/btn_logout.png");
+loadImage("imgBtnBackProfile", "assets/images/btn_back_profile.png");
 
 const mapGrid = [];
 const cols = WORLD_WIDTH / TILE_SIZE;
@@ -726,6 +741,31 @@ function update() {
     }
 }
 
+function drawSideImgButton(btn, key, fallbackText, bgColor, h, offsetX) {
+    const img = images[key];
+    if (img && img.complete && img.naturalWidth !== 0) {
+        const w = h * (img.naturalWidth / img.naturalHeight);
+        btn.x = canvas.width / 2 + offsetX - w / 2;
+        btn.width = w; btn.height = h;
+        ctx.drawImage(img, btn.x, btn.y, w, h);
+    } else {
+        drawButton(btn, fallbackText, bgColor);
+    }
+}
+
+function drawImgButton(btn, key, fallbackText, bgColor, h) {
+    const img = images[key];
+    if (img && img.complete && img.naturalWidth !== 0) {
+        const w = h * (img.naturalWidth / img.naturalHeight);
+        btn.x = canvas.width / 2 - w / 2;
+        btn.width = w; btn.height = h;
+        ctx.drawImage(img, btn.x, btn.y, w, h);
+        return true;
+    }
+    drawButton(btn, fallbackText, bgColor);
+    return false;
+}
+
 function drawButton(btn, text, bgColor = "#2e7d32") {
     ctx.fillStyle = bgColor;
     ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
@@ -897,8 +937,8 @@ function draw() {
         ctx.textAlign = "center";
         ctx.fillText("CONTA DO JOGO", canvas.width / 2, 100);
 
-        drawButton(tabLogin, "ENTRAR", authMode === "login" ? "#1565c0" : "#555555");
-        drawButton(tabRegister, "CRIAR CONTA", authMode === "register" ? "#2e7d32" : "#555555");
+               drawSideImgButton(tabLogin, "imgBtnEnter", "ENTRAR", authMode === "login" ? "#1565c0" : "#555555", 40, -60);
+        drawSideImgButton(tabRegister, "imgBtnRegister", "CRIAR CONTA", authMode === "register" ? "#2e7d32" : "#555555", 40, 60);
 
         drawInputBox(inputEmailBox, "E-mail:", inputEmail, activeInput === "email");
         drawInputBox(inputPassBox, "Senha:", inputPassword, activeInput === "password", true);
@@ -910,8 +950,8 @@ function draw() {
             ctx.fillText(authErrorMessage, canvas.width / 2, 345);
         }
 
-        drawButton(btnSubmitAuth, authMode === "login" ? "CONFIRMAR LOGIN" : "CADASTRAR", authMode === "login" ? "#1565c0" : "#2e7d32");
-        drawButton(btnBackFromAuth, "VOLTAR", "#c62828");
+          drawImgButton(btnSubmitAuth, authMode === "login" ? "imgBtnSubmitLogin" : "imgBtnSubmitRegister", authMode === "login" ? "CONFIRMAR LOGIN" : "CADASTRAR", authMode === "login" ? "#1565c0" : "#2e7d32", 45);
+          drawImgButton(btnBackFromAuth, "imgBtnBackAuth", "VOLTAR", "#c62828", 40);
     }
 
     if (gameState === "profile") {
@@ -928,8 +968,7 @@ function draw() {
             ctx.fillText(profileNick, canvas.width / 2, 280);
         }
 
-        drawButton(btnChangePhoto, "TROCAR FOTO", "#1565c0");
-
+        drawImgButton(btnChangePhoto, "imgBtnChangePhoto", "TROCAR FOTO", "#1565c0", 40);
         drawInputBox(profileNickBox, "Novo nick:", profileInput, true);
 
         if (profileErrorMessage) {
@@ -945,9 +984,9 @@ function draw() {
             ctx.fillText(profileSavedMessage, canvas.width / 2, 420);
         }
 
-        drawButton(btnSaveProfile, "SALVAR", "#2e7d32");
-        drawButton(btnLogoutProfile, "SAIR DA CONTA", "#c62828");
-        drawButton(btnBackFromProfile, "VOLTAR", "#555555");
+        drawImgButton(btnSaveProfile, "imgBtnSaveProfile", "SALVAR", "#2e7d32", 45);
+        drawImgButton(btnLogoutProfile, "imgBtnLogout", "SAIR DA CONTA", "#c62828", 40);
+        drawImgButton(btnBackFromProfile, "imgBtnBackProfile", "VOLTAR", "#555555", 40);
     }
 
     if (gameState === "new_game_prompt") {
@@ -966,8 +1005,8 @@ function draw() {
         ctx.font = "22px MinhaFonte";
         ctx.fillText(newSaveInputName + "|", canvas.width / 2, canvas.height / 2 - 10);
 
-        drawButton(btnConfirmNewSave, "CRIAR MUNDO", "#2e7d32");
-        drawButton(btnCancelNewSave, "VOLTAR", "#c62828");
+        drawImgButton(btnConfirmNewSave, "imgBtnCreateWorld", "CRIAR MUNDO", "#2e7d32", 45);
+        drawImgButton(btnCancelNewSave, "imgBtnBackSave", "VOLTAR", "#c62828", 45);
     }
 
     if (gameState === "load_menu") {
@@ -989,12 +1028,10 @@ function draw() {
             for (let i = 0; i < savesList.length && i < 5; i++) {
                 const saveItem = savesList[i];
                 const btnSlot = { x: startX, y: startY + (i * 55), width: slotWidth, height: slotHeight };
-                drawButton(btnSlot, `${saveItem.name} (${saveItem.date})`, "#1565c0");
-            }
+                drawImgButton(btnSlot, "imgBtnSlot", `${saveItem.name} (${saveItem.date})`, "#1565c0", 45);            }
         }
 
-        drawButton(btnBackFromLoad, "VOLTAR", "#c62828");
-    }
+        drawImgButton(btnBackFromLoad, "imgBtnBackLoad", "VOLTAR", "#c62828", 45);    }
 
     if (gameState === "cutscene") {
         ctx.fillStyle = "#000000";
@@ -1040,7 +1077,7 @@ function draw() {
         ctx.fillStyle = "#ffffff";
         ctx.font = "20px MinhaFonte";
         ctx.textAlign = "left";
-        ctx.fillText(scene.text, boxX + 20, boxY + 45);
+        ctx.fillText(scene.text, boxX + 100, boxY + 75);
 
         ctx.fillStyle = "#00ffcc";
         ctx.font = "14px MinhaFonte";
@@ -1054,8 +1091,8 @@ function draw() {
         ctx.textAlign = "center";
         ctx.fillText("JOGO PAUSADO", canvas.width / 2, canvas.height / 2 - 100);
 
-        drawButton(btnResume, "CONTINUAR", "#2e7d32");
-        drawButton(btnBackToMenu, "MENU PRINCIPAL", "#c62828");
+        drawImgButton(btnResume, "imgBtnResume", "CONTINUAR", "#2e7d32", 50);
+        drawImgButton(btnBackToMenu, "imgBtnMenu", "MENU PRINCIPAL", "#c62828", 50);
     }
 
     if (gameState === "playing") {
