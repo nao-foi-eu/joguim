@@ -308,6 +308,7 @@ const profileNickBox = { x: canvas.width / 2 - 120, y: 360, width: 240, height: 
 const btnSaveProfile = { x: canvas.width / 2 - 110, y: 430, width: 220, height: 45 };
 const btnLogoutProfile = { x: canvas.width / 2 - 110, y: 485, width: 220, height: 40 };
 const btnBackFromProfile = { x: canvas.width / 2 - 110, y: 535, width: 220, height: 40 };
+const saveSlots = [];
 
 function updateUIPositions() {
     btnNewGame.x = canvas.width / 2 - 110; btnNewGame.y = canvas.height / 2 - 55;
@@ -679,14 +680,8 @@ canvas.addEventListener("click", (e) => {
             return;
         }
 
-        const slotWidth = 320;
-        const slotHeight = 45;
-        const startX = canvas.width / 2 - slotWidth / 2;
-        let startY = 150;
-
         for (let i = 0; i < savesList.length && i < 5; i++) {
-            const slotBtn = { x: startX, y: startY + (i * 55), width: slotWidth, height: slotHeight };
-            if (isInside(slotBtn)) {
+            if (saveSlots[i] && isInside(saveSlots[i])) {
                 loadSelectedSave(savesList[i]);
                 break;
             }
@@ -940,9 +935,9 @@ function draw() {
             btnContinueGame.width = w; btnContinueGame.height = h;
             ctx.drawImage(contImg, btnContinueGame.x, btnContinueGame.y, w, h);
             ctx.fillStyle = "#000000"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText("CARREGAR / CONTINUAR", btnContinueGame.x + w / 2, btnContinueGame.y + h / 2);
+            ctx.fillText("CONTINUAR", btnContinueGame.x + w / 2, btnContinueGame.y + h / 2);
         } else {
-            drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
+            drawButton(btnContinueGame, "CONTINUAR", "#1565c0");
         }
 
         drawCircleAvatar(profileBtn.x + profileBtn.r, profileBtn.y + profileBtn.r, profileBtn.r);
@@ -1037,15 +1032,60 @@ function draw() {
             ctx.font = "20px MinhaFonte";
             ctx.fillText("Nenhum save encontrado.", canvas.width / 2, 220);
         } else {
-            const slotWidth = 320;
-            const slotHeight = 45;
-            const startX = canvas.width / 2 - slotWidth / 2;
             let startY = 150;
+            const slotH = 75;
+            const gap = 90;
 
             for (let i = 0; i < savesList.length && i < 5; i++) {
                 const saveItem = savesList[i];
-                const btnSlot = { x: startX, y: startY + (i * 75), width: slotWidth, height: slotHeight };
-                drawImgButton(btnSlot, "imgBtnSlot", `${saveItem.name} (${saveItem.date})`, "#1565c0", 75);            }
+                if (!saveSlots[i]) saveSlots[i] = { x: 0, y: startY + (i * gap), width: 320, height: slotH };
+                saveSlots[i].y = startY + (i * gap);
+                drawImgButton(saveSlots[i], "imgBtnSlot", saveItem.name, "#1565c0", slotH, 14);
+
+                // Botão RENOMEAR ao lado do slot
+                if (!btnRenameList[i]) btnRenameList[i] = { x: 0, y: 0, width: 100, height: 40 };
+                btnRenameList[i].x = saveSlots[i].x + saveSlots[i].width + 20;
+                btnRenameList[i].y = saveSlots[i].y + (slotH - 40) / 2;
+                drawImgButton(btnRenameList[i], "imgBtnRename", "RENOMEAR", "#555555", 40, 12);
+            }
+
+            // Caixinha de renomeação
+            if (renamingSaveIndex >= 0) {
+                const boxW = 400;
+                const boxH = 180;
+                const boxX = canvas.width / 2 - boxW / 2;
+                const boxY = canvas.height / 2 - boxH / 2;
+
+                ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+                ctx.fillRect(boxX, boxY, boxW, boxH);
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 20px MinhaFonte";
+                ctx.textAlign = "center";
+                ctx.fillText("NOVO NOME DO MUNDO:", canvas.width / 2, boxY + 40);
+
+                // Campo de texto
+                ctx.fillStyle = "#222222";
+                ctx.fillRect(boxX + 30, boxY + 60, boxW - 60, 45);
+                ctx.strokeStyle = "#00ffcc";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(boxX + 30, boxY + 60, boxW - 60, 45);
+                ctx.fillStyle = "#00ffcc";
+                ctx.font = "20px MinhaFonte";
+                ctx.textAlign = "center";
+                ctx.fillText(renameInput + "|", canvas.width / 2, boxY + 88);
+
+                // Botões Confirmar / Cancelar
+                if (!btnConfirmRename) btnConfirmRename = { x: 0, y: 0, width: 150, height: 40 };
+                if (!btnCancelRename) btnCancelRename = { x: 0, y: 0, width: 150, height: 40 };
+                btnConfirmRename.x = canvas.width / 2 - 160; btnConfirmRename.y = boxY + 120;
+                btnCancelRename.x = canvas.width / 2 + 10; btnCancelRename.y = boxY + 120;
+                drawImgButton(btnConfirmRename, "imgBtnConfirmRename", "CONFIRMAR", "#2e7d32", 40, 14);
+                drawImgButton(btnCancelRename, "imgBtnCancelRename", "CANCELAR", "#c62828", 40, 14);
+            }
         }
 
         drawImgButton(btnBackFromLoad, "imgBtnBackLoad", "VOLTAR", "#c62828", 45);    }
