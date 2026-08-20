@@ -748,6 +748,12 @@ function drawSideImgButton(btn, key, fallbackText, bgColor, h, offsetX) {
         btn.x = canvas.width / 2 + offsetX - w / 2;
         btn.width = w; btn.height = h;
         ctx.drawImage(img, btn.x, btn.y, w, h);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 18px MinhaFonte";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(fallbackText, btn.x + w / 2, btn.y + h / 2);
     } else {
         drawButton(btn, fallbackText, bgColor);
     }
@@ -760,6 +766,13 @@ function drawImgButton(btn, key, fallbackText, bgColor, h) {
         btn.x = canvas.width / 2 - w / 2;
         btn.width = w; btn.height = h;
         ctx.drawImage(img, btn.x, btn.y, w, h);
+
+        // Texto por cima da imagem
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 18px MinhaFonte";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(fallbackText, btn.x + w / 2, btn.y + h / 2);
         return true;
     }
     drawButton(btn, fallbackText, bgColor);
@@ -912,7 +925,9 @@ function draw() {
             const w = h * (newImg.naturalWidth / newImg.naturalHeight);
             btnNewGame.x = cx - w / 2; btnNewGame.y = canvas.height / 2 - 60;
             btnNewGame.width = w; btnNewGame.height = h;
-            ctx.drawImage(newImg, btnNewGame.x, btnNewGame.y, w, h);
+              ctx.drawImage(newImg, btnNewGame.x, btnNewGame.y, w, h);
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("NOVO JOGO", btnNewGame.x + w / 2, btnNewGame.y + h / 2);
         } else {
             drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
         }
@@ -924,6 +939,8 @@ function draw() {
             btnContinueGame.x = cx - w / 2; btnContinueGame.y = canvas.height / 2 + 20;
             btnContinueGame.width = w; btnContinueGame.height = h;
             ctx.drawImage(contImg, btnContinueGame.x, btnContinueGame.y, w, h);
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("CARREGAR / CONTINUAR", btnContinueGame.x + w / 2, btnContinueGame.y + h / 2);
         } else {
             drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
         }
