@@ -749,7 +749,7 @@ function drawSideImgButton(btn, key, fallbackText, bgColor, h, offsetX) {
         btn.width = w; btn.height = h;
         ctx.drawImage(img, btn.x, btn.y, w, h);
 
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#000000";
         ctx.font = "bold 18px MinhaFonte";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -768,7 +768,7 @@ function drawImgButton(btn, key, fallbackText, bgColor, h) {
         ctx.drawImage(img, btn.x, btn.y, w, h);
 
         // Texto por cima da imagem
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#000000";
         ctx.font = "bold 18px MinhaFonte";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -926,7 +926,7 @@ function draw() {
             btnNewGame.x = cx - w / 2; btnNewGame.y = canvas.height / 2 - 60;
             btnNewGame.width = w; btnNewGame.height = h;
               ctx.drawImage(newImg, btnNewGame.x, btnNewGame.y, w, h);
-            ctx.fillStyle = "#ffffff"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "#000000"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText("NOVO JOGO", btnNewGame.x + w / 2, btnNewGame.y + h / 2);
         } else {
             drawButton(btnNewGame, "NOVO JOGO", "#2e7d32");
@@ -939,7 +939,7 @@ function draw() {
             btnContinueGame.x = cx - w / 2; btnContinueGame.y = canvas.height / 2 + 20;
             btnContinueGame.width = w; btnContinueGame.height = h;
             ctx.drawImage(contImg, btnContinueGame.x, btnContinueGame.y, w, h);
-            ctx.fillStyle = "#ffffff"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "#000000"; ctx.font = "bold 18px MinhaFonte"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText("CARREGAR / CONTINUAR", btnContinueGame.x + w / 2, btnContinueGame.y + h / 2);
         } else {
             drawButton(btnContinueGame, "CARREGAR / CONTINUAR", "#1565c0");
@@ -985,7 +985,7 @@ function draw() {
             ctx.fillText(profileNick, canvas.width / 2, 280);
         }
 
-        drawImgButton(btnChangePhoto, "imgBtnChangePhoto", "TROCAR FOTO", "#1565c0", 40);
+        drawImgButton(btnChangePhoto, "imgBtnChangePhoto", "TROCAR FOTO", "#1565c0", 45);
         drawInputBox(profileNickBox, "Novo nick:", profileInput, true);
 
         if (profileErrorMessage) {
@@ -1002,8 +1002,8 @@ function draw() {
         }
 
         drawImgButton(btnSaveProfile, "imgBtnSaveProfile", "SALVAR", "#2e7d32", 45);
-        drawImgButton(btnLogoutProfile, "imgBtnLogout", "SAIR DA CONTA", "#c62828", 40);
-        drawImgButton(btnBackFromProfile, "imgBtnBackProfile", "VOLTAR", "#555555", 40);
+        drawImgButton(btnLogoutProfile, "imgBtnLogout", "SAIR DA CONTA", "#c62828", 45);
+        drawImgButton(btnBackFromProfile, "imgBtnBackProfile", "VOLTAR", "#555555", 45);
     }
 
     if (gameState === "new_game_prompt") {
@@ -1044,8 +1044,8 @@ function draw() {
 
             for (let i = 0; i < savesList.length && i < 5; i++) {
                 const saveItem = savesList[i];
-                const btnSlot = { x: startX, y: startY + (i * 55), width: slotWidth, height: slotHeight };
-                drawImgButton(btnSlot, "imgBtnSlot", `${saveItem.name} (${saveItem.date})`, "#1565c0", 45);            }
+                const btnSlot = { x: startX, y: startY + (i * 75), width: slotWidth, height: slotHeight };
+                drawImgButton(btnSlot, "imgBtnSlot", `${saveItem.name} (${saveItem.date})`, "#1565c0", 75);            }
         }
 
         drawImgButton(btnBackFromLoad, "imgBtnBackLoad", "VOLTAR", "#c62828", 45);    }
